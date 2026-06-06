@@ -8,6 +8,12 @@ type Props = {
 
 const { project, index } = Astro.props;
 const isPrimary = index === 0;
+const evidenceLinks = [
+  { label: "GitHub", url: project.repoUrl },
+  { label: "Case Study", url: project.caseStudyUrl },
+  { label: "Architecture", url: project.architectureUrl },
+  { label: "Demo", url: project.demoUrl }
+].filter((link): link is { label: string; url: string } => Boolean(link.url));
 ---
 
 <article class={`card card-hover ${isPrimary ? "lg:col-span-2" : ""}`}>
@@ -29,9 +35,21 @@ const isPrimary = index === 0;
   <div class="mt-6 flex flex-wrap gap-2">
     {project.tags.map((tag) => <span class="tag">{tag}</span>)}
   </div>
-  {project.href && (
-    <a class="mt-6 inline-flex text-sm font-bold text-blue-700 hover:text-blue-900" href={project.href} target="_blank" rel="noreferrer">
-      View project
-    </a>
+  {evidenceLinks.length > 0 && (
+    <div class="mt-6 flex flex-wrap gap-3" aria-label={`${project.title} evidence links`}>
+      {evidenceLinks.map((link) => {
+        const isExternal = link.url.startsWith("http");
+        return (
+          <a
+            class="button button-secondary min-h-10 px-3"
+            href={link.url}
+            target={isExternal ? "_blank" : undefined}
+            rel={isExternal ? "noreferrer" : undefined}
+          >
+            {link.label}
+          </a>
+        );
+      })}
+    </div>
   )}
 </article>

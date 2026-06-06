@@ -4,25 +4,13 @@ export type Project = {
   subtitle: string;
   bullets: string[];
   tags: string[];
-  href?: string;
+  repoUrl?: string;
+  caseStudyUrl?: string;
+  architectureUrl?: string;
+  demoUrl?: string;
 };
 
 export const projects: Project[] = [
-  {
-    title: "Go/Kubernetes Service Platform",
-    status: "In progress",
-    subtitle:
-      "A production-style microservice deployed on Kubernetes with Helm, probes, HPA, ConfigMaps, Secrets, and CI/CD.",
-    bullets: [
-      "Built a Go REST/gRPC service with clean architecture and structured logging.",
-      "Containerized the service with a multi-stage non-root Docker image.",
-      "Deployed to Kubernetes using Helm with dev/prod values overlays.",
-      "Added liveness/readiness probes, resource requests/limits, ConfigMap/Secret separation.",
-      "Configured HorizontalPodAutoscaler with metrics-server.",
-      "Added GitHub Actions CI for tests, linting, Docker build, and Helm chart validation."
-    ],
-    tags: ["Go", "Kubernetes", "Docker", "Helm", "GitHub Actions", "HPA", "Observability"]
-  },
   {
     title: "Agentic LLM Service for Spec Generation",
     subtitle:
@@ -33,7 +21,25 @@ export const projects: Project[] = [
       "Added OpenTelemetry metrics, structured logs, Datadog RED dashboards, and p95/p99 monitoring.",
       "Improved automated spec-generation throughput by 35%."
     ],
-    tags: ["Python", "FastAPI", "LLM", "RAG", "OpenTelemetry", "Datadog", "CI/CD"]
+    tags: ["Python", "FastAPI", "LLM", "RAG", "OpenTelemetry", "Datadog", "CI/CD"],
+    caseStudyUrl: "/notes/llm-gateway-observability/",
+    architectureUrl: "/notes/ai-service-red-metrics/"
+  },
+  {
+    title: "Go/Kubernetes Service Platform",
+    status: "Current build",
+    subtitle:
+      "A production-style microservice deployed on Kubernetes with Helm, probes, HPA, ConfigMaps, Secrets, and CI/CD.",
+    bullets: [
+      "Built a Go REST/gRPC service with clean architecture and structured logging.",
+      "Containerized the service with a multi-stage non-root Docker image.",
+      "Deployed to Kubernetes using Helm with dev/prod values overlays.",
+      "Added liveness/readiness probes, resource requests/limits, ConfigMap/Secret separation.",
+      "Configured HorizontalPodAutoscaler with metrics-server.",
+      "Added GitHub Actions CI for tests, linting, Docker build, and Helm chart validation."
+    ],
+    tags: ["Go", "Kubernetes", "Docker", "Helm", "GitHub Actions", "HPA", "Observability"],
+    caseStudyUrl: "/notes/go-kubernetes-service/"
   },
   {
     title: "High-Throughput Time-Series Data Platform",
@@ -45,7 +51,8 @@ export const projects: Project[] = [
       "Supported concurrent serving for 30 internal users.",
       "Built deployment automation with GitLab CI and Docker."
     ],
-    tags: ["FastAPI", "Python", "Time-Series", "Indexing", "Docker", "GitLab CI"]
+    tags: ["FastAPI", "Python", "Time-Series", "Indexing", "Docker", "GitLab CI"],
+    caseStudyUrl: "/notes/ai-service-red-metrics/"
   },
   {
     title: "Distributed Dataset Versioning & CV Pipeline",
@@ -58,7 +65,8 @@ export const projects: Project[] = [
       "Optimized GPU memory utilization for 3D video reconstruction.",
       "Work productized into first-author patent US 19/402,148."
     ],
-    tags: ["Python", "PyTorch", "Linux", "Multi-GPU", "Dataset Versioning", "Computer Vision"]
+    tags: ["Python", "PyTorch", "Linux", "Multi-GPU", "Dataset Versioning", "Computer Vision"],
+    caseStudyUrl: "/notes/ai-service-red-metrics/"
   },
   {
     title: "AI Reading Partner",
@@ -69,6 +77,6 @@ export const projects: Project[] = [
       "Demonstrates compact end-to-end GenAI product delivery."
     ],
     tags: ["Chrome Extension", "Gemini API", "TypeScript", "GenAI", "RAG"],
-    href: "https://devpost.com/software/ai-reading-partner"
+    demoUrl: "https://devpost.com/software/ai-reading-partner"
   }
 ];
