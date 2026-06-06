@@ -2,19 +2,20 @@
 type Props = {
   id: string;
   eyebrow: string;
-  title: string;
+  title?: string;
   description?: string;
   class?: string;
 };
 
 const { id, eyebrow, title, description, class: className = "" } = Astro.props;
+const hasHeading = Boolean(title || description);
 ---
 
 <section id={id} class={`section-pad ${className}`}>
   <div class="page-shell">
-    <div class="mb-9 max-w-3xl">
+    <div class={`${hasHeading ? "mb-9 max-w-3xl" : "mb-6"}`}>
       <p class="eyebrow">{eyebrow}</p>
-      <h2 class="mt-3 text-3xl font-extrabold leading-tight tracking-normal text-slate-950 sm:text-4xl">{title}</h2>
+      {title && <h2 class="mt-3 text-3xl font-extrabold leading-tight tracking-normal text-slate-950 sm:text-4xl">{title}</h2>}
       {description && <p class="mt-4 text-lg leading-8 text-slate-600">{description}</p>}
     </div>
     <slot />

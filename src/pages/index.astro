@@ -21,8 +21,6 @@ const notes = (await getCollection("notes")).sort((a, b) => b.data.date.valueOf(
     <Section
       id="featured"
       eyebrow="Featured projects"
-      title="Ranked by recruiter-readable backend and infrastructure signal."
-      description="These are not ordered by date. The strongest signal comes first: service ownership, Kubernetes deployment, CI/CD, observability, backend APIs, and reliable data pipelines."
     >
       <div class="grid gap-5 lg:grid-cols-2">
         {projects.map((project, index) => <ProjectCard project={project} index={index} />)}
@@ -32,8 +30,6 @@ const notes = (await getCollection("notes")).sort((a, b) => b.data.date.valueOf(
     <Section
       id="experience"
       eyebrow="Experience"
-      title="Impact cards, not a copied CV."
-      description="The website version keeps the focus on production ownership: backend systems, LLM services, observability, CI/CD, and distributed data infrastructure."
       class="bg-white"
     >
       <div class="grid gap-5">
@@ -44,8 +40,6 @@ const notes = (await getCollection("notes")).sort((a, b) => b.data.date.valueOf(
     <Section
       id="focus"
       eyebrow="Technical focus"
-      title="A clear engineering direction, not a generic skill dump."
-      description="The Go/Kubernetes project makes the cloud-native direction explicit while the production backend and AI infrastructure work shows the existing foundation."
     >
       <div class="grid gap-5 md:grid-cols-2">
         {skills.map((skill) => <SkillCard skill={skill} />)}

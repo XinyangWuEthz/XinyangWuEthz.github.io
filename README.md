@@ -36,11 +36,11 @@ The homepage links to `public/resume.pdf`. Replace that file when the resume cha
 
 ## Update Projects
 
-Edit `src/data/projects.ts`. Projects are intentionally ordered by recruiter-readable engineering signal, not by date. Keep Go/Kubernetes first while it is the strongest current infrastructure signal.
+Edit `src/data/projects.ts` to update project cards.
 
 ## Update Experience
 
-Edit `src/data/experience.ts`. Experience cards should stay impact-oriented and should not become a copied CV.
+Edit `src/data/experience.ts` to update experience cards.
 
 ## Update Technical Focus
 
