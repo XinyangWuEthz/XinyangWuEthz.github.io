@@ -1,0 +1,51 @@
+---
+import BaseLayout from "@layouts/BaseLayout.astro";
+
+const focusAreas = [
+  {
+    title: "Backend systems",
+    items: ["API design", "Async streaming", "Indexing", "Query optimization", "Testing"]
+  },
+  {
+    title: "Cloud native",
+    items: ["Docker", "Kubernetes", "Helm", "HPA", "Probes", "CI/CD"]
+  },
+  {
+    title: "AI infrastructure",
+    items: ["LLM gateway", "RAG grounding", "Evaluation gates", "Observability", "Regression triage"]
+  },
+  {
+    title: "Core CS",
+    items: ["Data structures & algorithms", "Concurrency", "System design", "Linux debugging"]
+  }
+];
+---
+
+<BaseLayout
+  title="Engineering Focus | Xinyang Wu"
+  description="Engineering focus areas across backend systems, cloud native infrastructure, AI infrastructure, and core computer science."
+>
+  <main class="section-pad">
+    <div class="page-shell">
+      <p class="eyebrow">Engineering Focus</p>
+      <h1 class="mt-3 max-w-4xl text-4xl font-extrabold tracking-normal text-slate-950 sm:text-5xl">
+        Backend systems, cloud native infrastructure, AI infrastructure, and core CS.
+      </h1>
+      <p class="mt-5 max-w-3xl text-lg leading-8 text-slate-600">
+        A compact map of the engineering areas I work on and keep sharpening through projects,
+        production systems, and technical notes.
+      </p>
+
+      <div class="mt-10 grid gap-5 md:grid-cols-2">
+        {focusAreas.map((area) => (
+          <article class="card">
+            <h2 class="text-xl font-extrabold text-slate-950">{area.title}</h2>
+            <ul class="mt-5 grid gap-3 pl-5 text-sm leading-6 text-slate-700">
+              {area.items.map((item) => <li class="list-disc marker:text-blue-700">{item}</li>)}
+            </ul>
+          </article>
+        ))}
+      </div>
+    </div>
+  </main>
+</BaseLayout>
