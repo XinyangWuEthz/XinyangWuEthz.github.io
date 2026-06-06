@@ -12,11 +12,54 @@ import { languages, skills } from "@data/skills";
 import { projects } from "@data/projects";
 
 const notes = (await getCollection("notes")).sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+
+const referralPacket = {
+  targetRoles: [
+    "Software Engineer, Backend Systems",
+    "Software Engineer, AI Infrastructure",
+    "Software Engineer, Cloud / Platform",
+    "Software Engineer, Search / Ranking / ML Infrastructure"
+  ],
+  locations: "Zurich, Munich, London, Dublin, US. Open to relocation.",
+  evidence: [
+    "Production LLM service with async streaming, evaluation gates, and observability",
+    "High-throughput FastAPI data platform",
+    "Distributed multi-GPU data pipeline at Bosch",
+    "Current Go/Kubernetes infrastructure project"
+  ]
+};
 ---
 
 <BaseLayout>
   <main>
     <Hero />
+
+    <Section
+      id="referral"
+      eyebrow="For referrals / recruiters"
+      class="bg-white"
+    >
+      <div class="grid gap-5 lg:grid-cols-[1.05fr_0.8fr_1.2fr]">
+        <article class="card">
+          <h2 class="text-xl font-extrabold text-slate-950">Target roles</h2>
+          <ul class="mt-5 grid gap-3 pl-5 text-sm leading-6 text-slate-700">
+            {referralPacket.targetRoles.map((role) => <li class="list-disc marker:text-blue-700">{role}</li>)}
+          </ul>
+        </article>
+
+        <article class="card">
+          <h2 class="text-xl font-extrabold text-slate-950">Preferred locations</h2>
+          <p class="mt-5 leading-7 text-slate-600">{referralPacket.locations}</p>
+        </article>
+
+        <article class="card">
+          <h2 class="text-xl font-extrabold text-slate-950">Best evidence</h2>
+          <ul class="mt-5 grid gap-3 pl-5 text-sm leading-6 text-slate-700">
+            {referralPacket.evidence.map((item) => <li class="list-disc marker:text-blue-700">{item}</li>)}
+          </ul>
+        </article>
+      </div>
+    </Section>
 
     <Section
       id="featured"
