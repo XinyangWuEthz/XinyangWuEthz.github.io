@@ -1,0 +1,81 @@
+---
+import { getCollection } from "astro:content";
+import ExperienceCard from "@components/ExperienceCard.astro";
+import Hero from "@components/Hero.astro";
+import NoteCard from "@components/NoteCard.astro";
+import ProjectCard from "@components/ProjectCard.astro";
+import Section from "@components/Section.astro";
+import SkillCard from "@components/SkillCard.astro";
+import BaseLayout from "@layouts/BaseLayout.astro";
+import { experience } from "@data/experience";
+import { languages, skills } from "@data/skills";
+import { projects } from "@data/projects";
+
+const notes = (await getCollection("notes")).sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+---
+
+<BaseLayout>
+  <main>
+    <Hero />
+
+    <Section
+      id="featured"
+      eyebrow="Featured projects"
+      title="Ranked by Google-readable backend and infrastructure signal."
+      description="These are not ordered by date. The strongest signal comes first: service ownership, Kubernetes deployment, CI/CD, observability, backend APIs, and reliable data pipelines."
+    >
+      <div class="grid gap-5 lg:grid-cols-2">
+        {projects.map((project, index) => <ProjectCard project={project} index={index} />)}
+      </div>
+    </Section>
+
+    <Section
+      id="experience"
+      eyebrow="Experience"
+      title="Impact cards, not a copied CV."
+      description="The website version keeps the focus on production ownership: backend systems, LLM services, observability, CI/CD, and distributed data infrastructure."
+      class="bg-white"
+    >
+      <div class="grid gap-5">
+        {experience.map((item) => <ExperienceCard item={item} />)}
+      </div>
+    </Section>
+
+    <Section
+      id="focus"
+      eyebrow="Technical focus"
+      title="A clear engineering direction, not a generic skill dump."
+      description="The Go/Kubernetes project makes the cloud-native direction explicit while the production backend and AI infrastructure work shows the existing foundation."
+    >
+      <div class="grid gap-5 md:grid-cols-2">
+        {skills.map((skill) => <SkillCard skill={skill} />)}
+      </div>
+      <div class="mt-6 rounded-lg border border-line bg-white p-6">
+        <h3 class="text-lg font-extrabold text-slate-950">Languages</h3>
+        <div class="mt-4 flex flex-wrap gap-2">
+          {languages.map((language) => <span class="tag">{language}</span>)}
+        </div>
+      </div>
+    </Section>
+
+    <Section
+      id="notes"
+      eyebrow="Writing / Notes"
+      title="A public learning trail for systems thinking."
+      description="Short practical notes that can grow over time. The point is to show how I reason about service design, release gates, and operational debugging."
+      class="bg-white"
+    >
+      <div class="grid gap-5 md:grid-cols-3">
+        {notes.map((note) => (
+          <NoteCard
+            title={note.data.title}
+            summary={note.data.summary}
+            date={note.data.date}
+            tags={note.data.tags}
+            href={`/notes/${note.slug}/`}
+          />
+        ))}
+      </div>
+    </Section>
+  </main>
+</BaseLayout>

@@ -1,0 +1,26 @@
+---
+title: "Observability for AI Services: RED Metrics, p95/p99 Latency, and Tracing"
+date: 2026-06-06
+summary: "A practical outline for monitoring user-facing AI services with backend-friendly signals."
+tags: ["Observability", "OpenTelemetry", "Datadog", "Runbooks"]
+---
+
+## Why RED metrics
+
+For a user-facing AI service, RED metrics are a strong starting point: request rate, error rate, and duration. They are simple enough for dashboards and precise enough for release triage.
+
+## Latency percentiles
+
+Average latency hides the behavior users complain about. p95 and p99 latency make slow tails visible and help separate model latency, retrieval latency, and backend overhead.
+
+## Structured logs
+
+Structured logs should carry request identifiers, route names, status, duration, and safe diagnostic context. They should make it possible to answer what failed without exposing sensitive input.
+
+## Tracing boundary
+
+Tracing should follow the request across API handlers, validation, retrieval, model calls, and response streaming. The goal is to locate the slow or failing segment quickly.
+
+## Runbook value
+
+Dashboards are incomplete without runbooks. A good runbook turns a metric change into concrete checks: recent deploys, downstream errors, model latency, queueing, and rollback criteria.

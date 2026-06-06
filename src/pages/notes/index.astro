@@ -1,0 +1,33 @@
+---
+import { getCollection } from "astro:content";
+import NoteCard from "@components/NoteCard.astro";
+import BaseLayout from "@layouts/BaseLayout.astro";
+
+const notes = (await getCollection("notes")).sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
+---
+
+<BaseLayout title="Writing / Notes | Xinyang Wu" description="Short technical notes on backend systems, AI infrastructure, Go/Kubernetes, and observability.">
+  <main class="section-pad">
+    <div class="page-shell">
+      <p class="eyebrow">Writing / Notes</p>
+      <h1 class="mt-3 text-4xl font-extrabold tracking-normal text-slate-950 sm:text-5xl">
+        Practical notes on production systems.
+      </h1>
+      <p class="mt-5 max-w-3xl text-lg leading-8 text-slate-600">
+        These notes are intentionally short and implementation-oriented. They are a place to document
+        how I think about backend services, release gates, and operational debugging.
+      </p>
+      <div class="mt-10 grid gap-5 md:grid-cols-3">
+        {notes.map((note) => (
+          <NoteCard
+            title={note.data.title}
+            summary={note.data.summary}
+            date={note.data.date}
+            tags={note.data.tags}
+            href={`/notes/${note.slug}/`}
+          />
+        ))}
+      </div>
+    </div>
+  </main>
+</BaseLayout>

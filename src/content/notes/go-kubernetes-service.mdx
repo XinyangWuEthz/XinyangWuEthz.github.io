@@ -1,0 +1,26 @@
+---
+title: "Building a Production-Style Go Service on Kubernetes"
+date: 2026-06-06
+summary: "A short implementation note for turning a small Go service into a deployable Kubernetes workload."
+tags: ["Go", "Kubernetes", "Helm", "CI/CD"]
+---
+
+## Goal
+
+The goal is not to build a large distributed system on day one. The goal is to practice the production path around a small service: API shape, container image, deployment manifest, health checks, configuration, and repeatable CI.
+
+## Service boundary
+
+I start with a Go service that has a narrow API boundary and clean package structure. The service should expose predictable REST or gRPC endpoints, structured logs, and a health endpoint that does not depend on optional downstream systems.
+
+## Container image
+
+The container should use a multi-stage build and run as a non-root user. This keeps the runtime image small and forces the service to be explicit about filesystem access, ports, and process behavior.
+
+## Kubernetes deployment
+
+The Kubernetes layer should include liveness and readiness probes, resource requests and limits, ConfigMap and Secret separation, and Helm values overlays for dev and prod-like environments.
+
+## CI checks
+
+The CI path should run tests and linting, build the Docker image, and validate the Helm chart. The project becomes more useful when every operational assumption is checked before deployment.

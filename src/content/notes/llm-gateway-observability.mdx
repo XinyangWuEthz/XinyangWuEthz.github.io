@@ -1,0 +1,26 @@
+---
+title: "Designing an LLM Gateway with FastAPI, Streaming, and Evaluation Gates"
+date: 2026-06-06
+summary: "A short note on the backend pieces that make an LLM service feel production-ready."
+tags: ["FastAPI", "LLM", "Streaming", "Evaluation"]
+---
+
+## Gateway responsibility
+
+An LLM gateway should do more than forward prompts. It owns request validation, session state, model routing, streaming behavior, error handling, and the boundary between user input and model output.
+
+## Streaming path
+
+Streaming changes the shape of the backend. The service has to handle partial output, cancellation, client disconnects, and traceable request lifecycle events without hiding errors behind a long-running response.
+
+## Session state
+
+Session state should be explicit and testable. The gateway needs to know which context belongs to the current request, which context is persisted, and which state is safe to reuse across model calls.
+
+## Evaluation gates
+
+Evaluation gates belong before production updates. Regression checks, data validation, and guardrail checks reduce the chance that a prompt, model, or retrieval change silently breaks user workflows.
+
+## Operational visibility
+
+The gateway should emit structured logs and metrics for latency, failures, and model-facing behavior. This is what makes debugging possible after a release.
