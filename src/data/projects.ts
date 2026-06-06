@@ -64,7 +64,7 @@ export const projects: Project[] = [
     title: "AI Reading Partner",
     subtitle: "Chrome extension using Gemini API, DOM extraction, backend orchestration, and live UI.",
     bullets: [
-      "Built a multimodal agentic Chrome extension for the Google Chrome Built-in AI Challenge.",
+      "Built a multimodal agentic Chrome extension for a browser AI challenge.",
       "Implemented DOM extraction, backend orchestration, and live UI updates.",
       "Demonstrates compact end-to-end GenAI product delivery."
     ],
