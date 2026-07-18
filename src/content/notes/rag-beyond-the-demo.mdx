@@ -1,0 +1,113 @@
+---
+title: "RAG Beyond the Demo: Pipeline, Citations, Evaluation, and When Not to Bother"
+date: 2026-06-22
+summary: "Retrieval-augmented generation as an engineering problem: what each pipeline stage can get wrong, deterministic citations, split evaluation, and how prompt caching moves the long-context break-even."
+tags: ["RAG", "LLM", "Embeddings", "Evaluation"]
+---
+
+## What RAG buys you
+
+Retrieval-augmented generation has a one-sentence core: retrieve relevant documents first, put them in the prompt, and let the model answer from them. That single move addresses three structural weaknesses of an LLM on its own. **Hallucination** gets reduced, because the model is conditioned on real documents you supplied — reduced, not eliminated, since nothing forces the decoder to stay inside the retrieved context, which is why faithfulness evaluation shows up later in this post. **Stale or private knowledge** stops requiring retraining, because updating the system means swapping documents, not weights. And **context cost** stays under control, because you send the few relevant chunks instead of the whole corpus on every request.
+
+The interesting decision is when *not* to use it. I think of it as a triangle. If the corpus is small enough to fit in the context window, long context is the degenerate case of RAG — just send everything. If the corpus is large, or you need cost control, or you need citations, retrieval earns its place. And if what you actually want to change is the model's capability or style rather than its knowledge, neither helps: that is fine-tuning territory.
+
+## Two pipelines, not one
+
+Every RAG diagram I find useful separates two paths that run on different schedules:
+
+```text
+offline: load -> chunk -> embed -> index
+online:  query -> embed -> retrieve top-k -> (rerank) -> assemble context -> generate -> cite
+```
+
+The offline path runs when documents change. The online path runs per request. Keeping them mentally separate matters because they fail differently: the offline path fails silently (bad chunking quietly poisons every future answer), while the online path fails loudly and per-query. Evaluation, covered below, attaches to each path separately too.
+
+Chunking itself is a trade-off with no free setting. Chunks around 400 tokens with 10–20% overlap are a sane default; the overlap exists so a sentence split across a boundary still survives intact in one chunk. Larger chunks carry more context but retrieve more coarsely; smaller chunks retrieve precisely but strand facts without their surroundings.
+
+## Embeddings without the magic
+
+An embedding model maps text to a **dense vector** — a few hundred to a couple thousand dimensions — such that semantically similar texts land near each other, measured by cosine similarity or dot product. Whether the vectors come from a hosted API or a local sentence-transformers model is completely transparent to the rest of the pipeline, which is a genuinely nice property: you can start local and swap later.
+
+A question worth answering precisely: why does this need a Transformer at all — would a simple MLP do? No, for two reasons. First, an MLP wants fixed-dimension input, and text is a variable-length token sequence; you need an encoder plus pooling just to produce something fixed-size. Second, and more fundamentally, the semantics live in **large-scale contrastive pretraining**, not in the layer shapes. The baseline spectrum makes this visible: BM25 sees only surface word overlap, averaged word vectors lose word order and context, and contrastively trained bi-encoders are what finally make "vector near" mean "meaning near".
+
+One linear-algebra fact does most of the work in a minimal implementation: if you **L2-normalize** the vectors, the dot product *is* cosine similarity, so retrieval collapses to a single matrix-vector product. The whole retriever fits in a few lines:
+
+```python
+import numpy as np
+from sentence_transformers import SentenceTransformer
+
+def chunk(text, size=80, overlap=20):
+    words = text.split()
+    step = size - overlap
+    return [" ".join(words[i:i + size]) for i in range(0, len(words), step)] or [text]
+
+model = SentenceTransformer("BAAI/bge-small-en-v1.5")
+chunks = [(source, c) for source, text in DOCS for c in chunk(text)]
+index = model.encode([c for _, c in chunks], normalize_embeddings=True)  # (N, 384)
+
+def retrieve(query, k=3):
+    q = model.encode([query], normalize_embeddings=True)[0]
+    scores = index @ q                    # dot product == cosine, thanks to normalization
+    top = np.argsort(scores)[::-1][:k]
+    return [(chunks[i][0], chunks[i][1], float(scores[i])) for i in top]
+```
+
+If you switch to a hosted embeddings API, only the encode calls change — but normalize the returned vectors yourself (APIs do not always guarantee it), and never mix models between indexing and querying: changing the embedding model means rebuilding the index.
+
+## When brute force is the right call
+
+Exact nearest-neighbor search is O(N) per query, which sounds like a problem until you put numbers on N. Approximate indexes — **HNSW** graphs, **IVF** clustering — exist to trade a little recall for orders-of-magnitude faster queries at millions of vectors. At tens of pages of documentation, N is a few hundred chunks, and the brute-force matrix product above runs in microseconds.
+
+Reaching for a vector database at that scale adds operational surface and an approximation error for zero benefit. Declining to deploy one is not a shortcut; it is a sizing decision, and being able to say precisely when HNSW starts paying for itself is the part worth knowing.
+
+## Two-stage retrieval and hybrid search
+
+When retrieval quality does become the bottleneck, two upgrades come before anything exotic.
+
+**Two-stage retrieval** exploits an asymmetry: bi-encoders are fast but coarse, cross-encoders are accurate but slow. So recall broadly with the bi-encoder — say top-50 — then let a **cross-encoder reranker** rescore just those candidates down to a top-5. You pay the expensive model only on a short list.
+
+**Hybrid search** covers the failure mode dense vectors are worst at: exact jargon, abbreviations, and identifiers that the embedding model never learned to place well. Run BM25 alongside the dense retriever and fuse the two rankings with **reciprocal rank fusion**. A first version legitimately skips both upgrades; the point is knowing which symptom each one treats.
+
+## Citations: soft vs hard
+
+Here is the observation that reframed citations for me: the query never connects to sources — *the retrieved chunks do*, and that connection is already fixed inside `retrieve()` before the model generates a single token.
+
+That gives you two mechanisms. The **soft** one embeds source markers in the context and prompts the model to repeat them inline. It gives sentence-level granularity, but the model can mis-attribute, skip citations, or invent sources that were never retrieved. The **hard** one skips the model entirely: the application already knows which chunks it passed in, so it returns them as structured data alongside the generated text.
+
+```python
+def answer(query: str) -> dict:
+    hits = retrieve(query)
+    context = "\n\n".join(f"[{source}] {text}" for source, text, _ in hits)
+    text = call_llm(context, query)
+    return {
+        "answer": text,
+        "sources": [{"source": s, "score": score} for s, _, score in hits],
+    }
+```
+
+The structured list is deterministic — those chunks are, with certainty, what the answer was conditioned on — but coarse: it says which documents were used, not which sentence supports which claim. Production systems combine both: hard sources as the authoritative record, soft inline markers for granularity.
+
+## Evaluate the two halves separately
+
+A RAG system breaks in two independent places, so evaluating it end-to-end mostly tells you *that* it is wrong, not *where*. Split the evaluation at the retrieval boundary.
+
+**Retrieval evaluation** is deterministic and should come first. Build a golden set of queries mapped to their relevant chunks, then measure **recall@k** (of the relevant chunks, how many made the top-k — the metric that matters most, because what is never retrieved can never be cited), plus MRR for ranking quality and precision@k for noise.
+
+**Generation evaluation** is fuzzier and usually uses an LLM as judge, scoring **faithfulness** (is every claim in the answer supported by the context?) and **answer relevance** — the RAGAS-style criteria. Judges carry known biases toward position, verbosity, and their own outputs, so use a strong judge model and calibrate with human spot-checks rather than trusting scores blindly.
+
+Golden sets come from three places: hand labeling (best way to start), synthetic generation (ask a model to write the question a given chunk answers), and mining real queries from logs once you have traffic.
+
+## Prompt caching changes the calculus
+
+Prompt caching is the mechanism that quietly moves the RAG-versus-long-context break-even. Under causal attention, a token's representation depends only on what precedes it, so providers can cache the KV state of a request's prefix and skip recomputing it when the next request starts with the *byte-identical* prefix.
+
+The iron rule follows directly: change one early byte and everything after it is invalidated. Requests render in a fixed order — tools, then system, then messages — so the static corpus belongs as early as possible and the volatile user query at the very end. The classic silent cache-killers are timestamps, request IDs, unsorted JSON serialization, and per-user values injected into the system prompt; the symptom is a cached-token counter in the usage stats that stays at zero forever.
+
+Providers differ in the details — some cache automatically past a minimum prefix length, others want explicit cache breakpoints — but cached reads generally cost on the order of a tenth of normal input tokens. That changes the economics: for a mid-sized corpus, you can park the whole thing in a cached prefix and pay full price only for each query. The break-even point where RAG beats long context moves noticeably further out than the un-cached math suggests.
+
+## Self-test
+
+- Why does L2-normalizing embeddings let a plain dot product stand in for cosine similarity, and what silently goes wrong if you skip the normalization?
+- Your system returns a fluent, confidently wrong answer. Which half of the pipeline do you check first, and with which metric?
+- What can prompt-inline citations do that deterministic retrieval-based sources cannot — and what is the reliability cost?
+- A teammate adds a timestamp to the system prompt of a long-context setup that relies on prompt caching. What happens to cost, and how would you detect it from usage stats?
