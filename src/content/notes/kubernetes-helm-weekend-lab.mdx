@@ -1,0 +1,142 @@
+---
+title: "A Weekend of Kubernetes: FastAPI, Helm, and Breaking Things on Purpose"
+date: 2026-06-08
+summary: "Deploying two FastAPI services on a local kind cluster with a production-shaped Helm chart — and why deliberately breaking the deployment taught me the most."
+tags: ["Kubernetes", "Helm", "Docker", "FastAPI"]
+---
+
+## The setup
+
+Reading about Pods and Services never made Kubernetes stick for me, so I gave it a weekend with a concrete goal: take two FastAPI services — an API service and an auth service — and get them running on a local **kind** cluster behind a Helm chart shaped like something you would actually run in production.
+
+Two constraints kept the exercise honest. First, everything had to be **additive**: no service code changes at all, just a Dockerfile, a kind config, and a chart. If the deployment layer needs the application to change, the deployment layer is wrong. Second, the chart had to go beyond a hello-world Deployment — config and secrets handled properly, liveness and readiness probes, autoscaling, and ingress with host-based routing, one hostname per service.
+
+The image is a slim multi-stage build that runs as a non-root user. The kind config maps host ports 80 and 443 into the node, so ingress traffic works from the host with plain `curl`:
+
+```yaml
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      - containerPort: 80
+        hostPort: 80
+      - containerPort: 443
+        hostPort: 443
+```
+
+Cluster and namespace are both named `demo`. A small Makefile wraps the lifecycle: `make up` builds the image, creates the cluster, installs ingress-nginx, and runs `helm upgrade --install`; `make down` deletes everything. Being able to rebuild from zero in a few minutes mattered more than I expected — it is what made the breakage experiments later in this post cheap.
+
+## Chart anatomy
+
+The chart contains the standard cast: Deployment, Service, ConfigMap, Secret, Ingress, HorizontalPodAutoscaler, ServiceAccount, plus dev and prod values overlays and a `helm test` pod that curls both services after every install.
+
+The part I like most: **one image, two Deployments**, templated from a single `services:` map in the values file.
+
+```yaml
+services:
+  api:
+    command: ["python", "-m", "myapp.api"]
+    port: 8000
+    host: api.demo.localhost
+  auth:
+    command: ["python", "-m", "myapp.auth"]
+    port: 8001
+    host: auth.demo.localhost
+```
+
+The templates `range` over this map. Both services run the same image; the `command:` field overrides the image's default `CMD`, so one build artifact becomes two different processes on two different ports, each behind its own ingress hostname. Adding a third service is one new values entry and zero template edits — I verified this by adding a dummy `whoami` service and watching a Deployment, a Service, and an ingress route appear for it without touching a single template. That is the test of a good chart: growth is data, not code.
+
+## How a secret becomes config
+
+The single most clarifying exercise of the weekend was tracing one value — the auth signing key — from the values file all the way into the running process:
+
+```text
+values.yaml  (secrets: section, overridable per environment)
+      |  helm install renders the secret template
+      v
+Secret manifest    stringData: { app.toml: <the complete TOML> }
+      |  applied to the cluster
+      v
+etcd               data: { app.toml: <base64> }    <- encoded, NOT encrypted
+      |  kubelet starts the pod
+      v
+Pod                /config/app.toml  (tmpfs volume, never written to disk)
+                   APP_CONFIG_FILE=/config/app.toml  (env var from the ConfigMap)
+      |  application startup
+      v
+config = {**defaults, **toml.load(os.environ["APP_CONFIG_FILE"])}
+```
+
+Two details in that pipeline are worth pausing on. The first is that base64 is an encoding, not encryption — anyone with etcd access or broad RBAC can decode a Secret. A Kubernetes Secret is a distribution mechanism, not a vault. The second is the last line: the application merges the loaded TOML over its defaults with a **shallow** dict merge. That one implementation detail dictates chart design. If the Secret carried only a partial overlay — say, just the section containing the signing key — the shallow merge would replace that entire section and silently drop its sibling defaults. So the whole config file lives in the Secret. Slightly inelegant, but correct, and the kind of constraint you only find by reading the app's config-loading code rather than the Helm docs.
+
+## Small tricks that carry the chart
+
+**Roll pods when config changes.** Kubernetes does not restart pods just because a Secret they mount was updated. The standard fix is a checksum annotation on the pod template:
+
+```yaml
+annotations:
+  checksum/config: '{{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}'
+```
+
+A config change produces a new hash, the pod template changes, and a rolling update happens for exactly the right reason.
+
+**Let the HPA own the replica count.** If `replicas:` is set on the Deployment while an HPA is active, every `helm upgrade` fights the autoscaler and resets its scaling decision. The chart omits `replicas` entirely whenever autoscaling is enabled.
+
+**Probe a free endpoint.** Liveness and readiness point at `/openapi.json` — FastAPI serves it automatically, it needs no auth, and it touches no downstream dependency. It answers exactly one question, "is this process up and serving HTTP", which is the right question for a liveness probe to ask.
+
+**Skip the registry.** `kind load docker-image` copies the locally built image straight into the cluster node, and `pullPolicy: IfNotPresent` stops the kubelet from trying to pull it. Local iteration needs no registry at all.
+
+**Diff before every upgrade.** The `helm-diff` plugin renders what an upgrade *would* change and shows it before anything is applied. Reading that diff is the habit that separates "it worked" from "I know what it did".
+
+## Breaking things on purpose
+
+The most valuable hours of the weekend were spent breaking a working deployment in controlled ways, because each breakage pairs a symptom with the one command that diagnoses it.
+
+**Wrong image tag.** Pods sit in `ImagePullBackOff`.
+
+```shell
+kubectl -n demo describe pod <pod>    # Events show the pull error and the exact image name
+```
+
+**Corrupt the TOML inside the Secret.** The container starts, Python throws during config load, the process exits, the kubelet restarts it: `CrashLoopBackOff`.
+
+```shell
+kubectl -n demo logs <pod> --previous    # the traceback from the crashed attempt
+```
+
+The `--previous` flag matters — the current container may be mid-restart with an empty log.
+
+**Selector that matches nothing.** Edit the Service's selector so it no longer matches the pod labels — or reinstall the chart with a mismatched pod-template label — and the Service silently loses its endpoints. Everything looks green — pods Running, Service present — yet the ingress returns 503.
+
+```shell
+kubectl -n demo get endpoints    # an empty ENDPOINTS column means selector mismatch
+```
+
+The obvious version of this experiment — relabeling a live pod — does not stay broken, and *why* it heals is its own lesson. Each Deployment's ReplicaSet selects pods by the same per-service labels the Service uses, so the moment a pod's label changes, the ReplicaSet disowns it and spins up a replacement that matches again. Endpoints repopulate within seconds and the ingress recovers. That quarantine behavior is a classic debugging move in its own right: strip a label from a misbehaving pod and it drops out of the Service, replaced by a fresh pod, while the original stays alive for inspection.
+
+**Scale the ingress controller to zero.** `curl` gets connection refused, while `kubectl get ingress` still shows a perfectly healthy-looking object. The lesson generalizes: Kubernetes objects describe *intent*, not the current state of the data path. The Ingress resource is inert configuration; the controller pod does the actual work.
+
+The common thread: symptoms surface at different layers, and debugging speed is mostly about knowing which layer emits which symptom before you start typing.
+
+## What I'd add next
+
+The chart is deliberately local-only, and each gap points at a well-known production tool:
+
+- **TLS** via cert-manager with a self-signed cluster issuer.
+- **External Secrets Operator**, so real secrets never live in a values file.
+- **Observability**: kube-prometheus-stack plus an OpenTelemetry Collector, and one Grafana dashboard for the two services — see [OpenTelemetry from first principles](/notes/opentelemetry-first-principles/) for why I want metrics, traces, and logs wired through one pipeline.
+- **CI** that builds the image per commit and pushes the packaged chart to an OCI registry.
+- **NetworkPolicies** restricting which pods may talk to the auth service, and a PodDisruptionBudget.
+
+Each of these is roughly a weekend of its own, which feels like the right unit for this kind of learning.
+
+## Self-test
+
+Five questions I now expect myself to answer cold. If any of them feels fuzzy to you, that section of the docs is worth a re-read.
+
+1. **Why is there a ReplicaSet between a Deployment and its Pods?** The Deployment owns the rollout strategy; each ReplicaSet just guarantees the replica count for one revision of the pod template.
+2. **A Service has no endpoints — what three things do you check?** The selector matches the pod labels; the pods pass their readiness probes; the Service port maps to the container port.
+3. **What triggers a rolling update?** Any change to the pod template — image tag, env vars, resources, or the config checksum annotation.
+4. **The HPA shows `<unknown>` for CPU — why?** Either metrics-server is missing (on kind it also needs `--kubelet-insecure-tls`), or the container declares no CPU request to compute a percentage against.
+5. **Are Kubernetes Secrets encrypted?** No — base64-encoded in etcd. Real deployments layer on etcd encryption at rest, tight RBAC, and an external secret store.
