@@ -22,7 +22,7 @@ const referralPacket = {
   ],
   locations: "Zurich, Munich, London, Dublin, US. Open to relocation.",
   evidence: [
-    "Production LLM service with async streaming, evaluation gates, and observability",
+    "Grounded Documentation and Evaluation Assistant with routed retrieval, streaming, and source evidence",
     "High-throughput FastAPI data platform",
     "Distributed multi-GPU data pipeline at Bosch",
     "Current Go/Kubernetes infrastructure project"
@@ -71,18 +71,8 @@ const referralPacket = {
     </Section>
 
     <Section
-      id="experience"
-      eyebrow="Experience"
-      class="bg-white"
-    >
-      <div class="grid gap-5">
-        {experience.map((item) => <ExperienceCard item={item} />)}
-      </div>
-    </Section>
-
-    <Section
       id="focus"
-      eyebrow="Technical focus"
+      eyebrow="Engineering Focus"
     >
       <div class="grid gap-5 md:grid-cols-2">
         {skills.map((skill) => <SkillCard skill={skill} />)}
@@ -93,14 +83,24 @@ const referralPacket = {
           {languages.map((language) => <span class="tag">{language}</span>)}
         </div>
       </div>
+      <a class="button button-secondary mt-6" href="/engineering-focus/">View full engineering focus</a>
+    </Section>
+
+    <Section
+      id="experience"
+      eyebrow="Experience"
+      class="bg-white"
+    >
+      <div class="grid gap-5">
+        {experience.map((item) => <ExperienceCard item={item} />)}
+      </div>
     </Section>
 
     <Section
       id="notes"
-      eyebrow="Writing / Notes"
-      title="A public learning trail for systems thinking."
-      description="Short practical notes that can grow over time. The point is to show how I reason about service design, release gates, and operational debugging."
-      class="bg-white"
+      eyebrow="Technical Notes"
+      title="Build logs with systems-level reasoning."
+      description="Short engineering notes on service boundaries, retrieval policy, release gates, observability, and the operational details behind production AI systems."
     >
       <div class="grid gap-5 md:grid-cols-3">
         {notes.map((note) => (

@@ -3,7 +3,7 @@ import { site } from "@data/site";
 ---
 
 <section class="relative overflow-hidden border-b border-slate-200 bg-white">
-  <div class="page-shell grid items-center gap-10 py-12 sm:py-14 lg:min-h-[calc(100svh-8rem)] lg:grid-cols-[1.05fr_0.95fr] lg:py-16">
+  <div class="page-shell grid items-center gap-10 py-12 sm:py-14 lg:min-h-[calc(100svh-8rem)] lg:grid-cols-[1.04fr_0.96fr] lg:py-16">
     <div>
       <p class="eyebrow">Software Engineer / AI Infrastructure / Backend Systems</p>
       <h1 class="mt-4 text-5xl font-extrabold leading-none tracking-normal text-slate-950 sm:text-6xl">
@@ -13,14 +13,28 @@ import { site } from "@data/site";
         Software Engineer &middot; AI Infrastructure &middot; Backend Systems
       </p>
       <p class="mt-6 max-w-2xl text-lg leading-8 text-slate-600">
-        ETH Z&uuml;rich MSc. Building production-grade Python/FastAPI systems, LLM/RAG services,
-        data pipelines, observability, and now Go/Kubernetes infrastructure.
+        ETH Z&uuml;rich MSc. Building production-grade Python/FastAPI systems, grounded
+        LLM assistants, data pipelines, observability, and now Go/Kubernetes infrastructure.
       </p>
       <p class="mt-4 max-w-2xl text-base leading-7 text-slate-600">
         Current engineering focus: distributed systems, backend engineering,
         Kubernetes, Go, and production AI platforms.
       </p>
-      <div class="mt-8 flex flex-wrap gap-3" aria-label="Primary actions">
+      <div class="mt-6 grid max-w-2xl gap-3 sm:grid-cols-2">
+        <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <p class="text-xs font-extrabold uppercase tracking-normal text-slate-600">Latest production update</p>
+          <p class="mt-2 text-sm font-semibold leading-6 text-slate-900">
+            Documentation and Evaluation Assistant - routed retrieval, source evidence, NDJSON streaming.
+          </p>
+        </div>
+        <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+          <p class="text-xs font-extrabold uppercase tracking-normal text-emerald-700">Now building</p>
+          <p class="mt-2 text-sm font-semibold leading-6 text-slate-900">
+            Go/Kubernetes service platform - Go, Docker, Helm, HPA, probes, GitHub Actions.
+          </p>
+        </div>
+      </div>
+      <div class="mt-6 flex flex-wrap gap-3" aria-label="Primary actions">
         <a class="button button-primary" href={site.links.projects}>View Projects</a>
         <a class="button button-secondary" href={site.links.resume}>Download Resume</a>
         <a class="button button-secondary" href={site.links.github}>GitHub</a>
@@ -28,12 +42,26 @@ import { site } from "@data/site";
         <a class="button button-secondary" href={site.links.email}>Email</a>
       </div>
     </div>
-    <div class="relative hidden lg:block" aria-hidden="true">
-      <div class="absolute -inset-8 rounded-full bg-blue-100/60 blur-3xl"></div>
-      <div class="relative overflow-hidden rounded-lg border border-slate-200 bg-slate-950 shadow-soft">
-        <img src="/infra-hero.png" alt="" class="h-[430px] w-full object-cover opacity-90" />
-        <div class="absolute inset-0 bg-gradient-to-tr from-slate-950/10 via-transparent to-blue-950/20"></div>
+    <aside class="hidden lg:block">
+      <div class="overflow-hidden rounded-lg border border-slate-200 bg-slate-950 shadow-soft">
+        <img src="/infra-hero.png" alt="Abstract infrastructure diagram" class="h-48 w-full object-cover opacity-80" />
+        <div class="border-t border-white/10 p-5">
+          <p class="text-xs font-extrabold uppercase tracking-normal text-blue-200">Recent system evidence</p>
+          <div class="mt-5 grid gap-3">
+            {[
+              ["Assistant stream", "FastAPI service with token and completion events over NDJSON."],
+              ["Retrieval policy", "Actionable and background evidence pools with technology and transferability boundaries."],
+              ["Frontend grounding", "Markdown, equations, intent chips, grounding strength, and source links."],
+              ["Release path", "Generated corpus checks, CI validation, and reusable assistant drawers."]
+            ].map(([title, body]) => (
+              <div class="rounded-lg border border-white/10 bg-white/[0.04] p-4">
+                <p class="text-sm font-extrabold text-white">{title}</p>
+                <p class="mt-1 text-sm leading-6 text-slate-300">{body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
-    </div>
+    </aside>
   </div>
 </section>

@@ -12,16 +12,17 @@ export type Project = {
 
 export const projects: Project[] = [
   {
-    title: "Agentic LLM Service for Spec Generation",
+    title: "Documentation & Evaluation Assistant Platform",
     subtitle:
-      "Production-grade FastAPI service with async streaming, session management, evaluation gates, and observability.",
+      "Grounded LLM assistant for product documentation and evaluation workflows, built with routed retrieval, NDJSON streaming, source evidence, and reusable frontend drawers.",
     bullets: [
-      "Architected an agentic LLM service with asynchronous streaming and robust session management.",
-      "Integrated automated evaluation and data validation into CI/CD before production updates.",
-      "Added OpenTelemetry metrics, structured logs, Datadog RED dashboards, and p95/p99 monitoring.",
-      "Improved automated spec-generation throughput by 35%."
+      "Built a FastAPI-based assistant service over generated product documentation and curated external knowledge corpora.",
+      "Implemented question routing across product, science, hybrid, troubleshooting, surface-chemistry, and comparison intents.",
+      "Designed retrieval policy with actionable vs. background evidence pools, transferability filters, and source-coverage guardrails.",
+      "Streamed token and completion events as NDJSON with resolved source metadata for frontend grounding display.",
+      "Reused the same assistant stream inside the Kinetics and Affinity Evaluation Assistant with goal, step, and data-selection context."
     ],
-    tags: ["Python", "FastAPI", "LLM", "RAG", "OpenTelemetry", "Datadog", "CI/CD"],
+    tags: ["Python", "FastAPI", "TypeScript", "LLM", "RAG", "NDJSON Streaming", "Retrieval Policy", "CI/CD"],
     caseStudyUrl: "/notes/llm-gateway-observability/",
     architectureUrl: "/notes/ai-service-red-metrics/"
   },

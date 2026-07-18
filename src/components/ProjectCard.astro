@@ -16,9 +16,9 @@ const evidenceLinks = [
 ].filter((link): link is { label: string; url: string } => Boolean(link.url));
 ---
 
-<article class={`card card-hover ${isPrimary ? "lg:col-span-2" : ""}`}>
+<article class={`card card-hover ${isPrimary ? "border-slate-300 lg:col-span-2" : ""}`}>
   <div class="flex flex-wrap items-center justify-between gap-3">
-    <span class="eyebrow">Project {index + 1}</span>
+    <span class="eyebrow">{isPrimary ? "Featured system" : `Project ${index + 1}`}</span>
     {project.status && (
       <span class="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800">
         Status: {project.status}

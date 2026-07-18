@@ -1,26 +1,42 @@
 ---
-title: "Designing an LLM Gateway with FastAPI, Streaming, and Evaluation Gates"
-date: 2026-06-06
-summary: "A short note on the backend pieces that make an LLM service feel production-ready."
-tags: ["FastAPI", "LLM", "Streaming", "Evaluation"]
+title: "Designing a Grounded Documentation Assistant"
+date: 2026-07-18
+summary: "A build log on turning a documentation chatbot into a routed, source-grounded assistant that can also guide evaluation workflows."
+tags: ["FastAPI", "LLM", "RAG", "Streaming", "TypeScript"]
 ---
 
-## Gateway responsibility
+## The system boundary
 
-An LLM gateway should do more than forward prompts. It owns request validation, session state, model routing, streaming behavior, error handling, and the boundary between user input and model output.
+A useful documentation assistant is not just a prompt attached to a search box. The service has to decide what kind of question was asked, what evidence is allowed to answer it, how much confidence the answer should claim, and which sources the UI can show afterwards.
 
-## Streaming path
+The current design keeps that boundary in the backend. The frontend sends the question and optional workflow context. The service validates the message, routes the question, retrieves eligible excerpts, streams the model response, then returns completion metadata with answer mode, intent, grounding strength, and resolved sources.
 
-Streaming changes the shape of the backend. The service has to handle partial output, cancellation, client disconnects, and traceable request lifecycle events without hiding errors behind a long-running response.
+## Corpus as a deployable artifact
 
-## Session state
+The assistant loads a generated documentation corpus and merges curated external JSON sources at runtime. The generated corpus is treated like a build artifact: documentation source files are parsed into chunks, cached with metadata, and checked in CI so documentation changes do not drift away from the assistant's retrieval index.
 
-Session state should be explicit and testable. The gateway needs to know which context belongs to the current request, which context is persisted, and which state is safe to reuse across model calls.
+That matters because the retrieval layer should be deterministic enough to test. If a page, anchor, keyword, or source type changes, the corpus check should catch stale generated output before release.
 
-## Evaluation gates
+## Routing before retrieval
 
-Evaluation gates belong before production updates. Regression checks, data validation, and guardrail checks reduce the chance that a prompt, model, or retrieval change silently breaks user workflows.
+The first backend decision is the route. Questions are classified into modes such as product, science, hybrid, and low confidence. The route also carries a technology context and knowledge intent, including product operation, troubleshooting, surface chemistry, target experiment design, science, and comparison.
 
-## Operational visibility
+This keeps retrieval from becoming "top lexical match wins." Product questions need product documentation or code-derived facts. Scientific background can explain mechanisms, but it cannot silently become product behavior. Comparison questions can bring in multiple technologies, but the answer must keep those claims separated.
 
-The gateway should emit structured logs and metrics for latency, failures, and model-facing behavior. This is what makes debugging possible after a release.
+## Evidence pools
+
+Retrieval uses two local evidence pools. The actionable pool contains product-grounded sources that may support a recommendation. The background pool contains scientific explanation or analogy. A policy decides which technologies, claim types, and transferability levels are eligible for each pool.
+
+This is the core guardrail. A high-scoring scientific reference should not override a lower-scoring product document for an operational question. The model can still use background evidence, but the prompt labels it as background and constrains how it can be used.
+
+## Streaming and source metadata
+
+The response path streams token events as NDJSON, then sends a final `done` event with the assistant message, route metadata, source coverage, and source objects. Source markers in the answer are resolved only against retrieved eligible excerpts. If the model omits citations, the frontend still receives the retrieved source list as fallback context.
+
+On the UI side, the assistant renders Markdown, lists, tables, and equations, then separates the answer body from grounding chips and source links. That makes the answer readable while preserving the evidence trail.
+
+## Reusing the same service
+
+The same assistant stream is now reused in the Kinetics and Affinity evaluation wizard. The frontend opens an Evaluation Assistant with the current goal, wizard step, and selected data in the initial prompt. Users can ask about model choice, data requirements, cleanup, fit acceptance, and review without introducing a second LLM backend.
+
+That reuse is the part I like most: one service boundary, one retrieval policy, one streaming protocol, and multiple product surfaces.

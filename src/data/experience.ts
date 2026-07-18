@@ -14,11 +14,11 @@ export const experience: Experience[] = [
     role: "Software Engineer",
     location: "Zurich, Switzerland",
     dates: "Sept 2024 - Present",
-    summary: "Production backend, LLM services, observability, CI/CD, and internal AI tooling.",
-    signals: ["Backend ownership", "Production LLM service", "CI/CD", "Observability", "Latency debugging"],
+    summary: "Production backend, grounded LLM assistants, observability, CI/CD, and internal AI tooling.",
+    signals: ["Backend ownership", "Grounded LLM service", "Routed retrieval", "CI/CD", "Observability", "Latency debugging"],
     highlights: [
       "Built FastAPI data platform for biosensor time-series.",
-      "Shipped production agentic LLM service.",
+      "Shipped documentation and evaluation assistants with streaming responses, source grounding, and reusable UI integration.",
       "Added CI/CD validation gates for backend/frontend/model updates.",
       "Instrumented services with OpenTelemetry and Datadog."
     ]
