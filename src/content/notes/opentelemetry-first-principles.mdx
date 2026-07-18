@@ -1,0 +1,128 @@
+---
+title: "OpenTelemetry from First Principles: Three Signals, One Identity"
+date: 2026-06-16
+summary: "The mental model behind OTel — signals, resources, the API/SDK split, and how trace context turns three monitoring streams into one investigation workflow."
+tags: ["OpenTelemetry", "Observability", "Tracing", "Python"]
+---
+
+## Why OpenTelemetry exists
+
+OpenTelemetry is a vendor-neutral telemetry standard: a unified **API**, an **SDK**, and a wire protocol (**OTLP**). The point of the split is decoupling *how telemetry is produced* from *which backend consumes it*. Your business code writes against the OTel API; if you move from Datadog to Prometheus and Grafana, you change the exporter configuration at startup and touch zero lines of application logic.
+
+That is the headline benefit, but it undersells the design. The real advantage over running three separate tools — a metrics library, a tracing library, a logging pipeline — is that one SDK produces all three signals, and they share a **Resource** (a common identity) and a **context** (a common thread). Everything interesting about OTel follows from that sharing.
+
+## Three signals, three questions
+
+Each signal answers a different question, and the differences in shape are not accidental:
+
+| Signal | Question | Character |
+|---|---|---|
+| **Metrics** | What broke, and how badly? | Pre-aggregated, cheap, low-cardinality, alertable |
+| **Traces** | Where in the request did it break? | Causal chain plus timing, per request |
+| **Logs** | Why, in full detail? | Arbitrary structure, high cardinality |
+
+Metrics are the alarm: `myapp.api.prediction.failures` climbing tells you *something* is wrong. A trace decomposes one request into a tree of timed spans and tells you *which stage* is slow or failing. Logs carry the arbitrary, high-cardinality detail — input names, intermediate values — that explains *why*.
+
+There is a well-known critique, associated with Charity Majors, that the "three pillars" framing misses the point: having three data stores is not observability. Being able to slice by high-cardinality dimensions and pivot freely *between* signals is. I find that critique exactly right, and it reframes the rest of this post: the mechanisms below are what turn three disconnected monitoring systems into one investigation workflow — metric spike, jump to a representative trace, jump to that request's logs.
+
+## The vocabulary that makes docs readable
+
+Five terms unlock most of the OTel documentation:
+
+- **Resource** — *who* is producing telemetry: `service.name`, `service.version`, `host.name`. The shared identity of all three signals.
+- **Scope** (a Meter, Tracer, or Logger) — *which module* is producing it: `metrics.get_meter("myapp.api.prediction")` is a namespace, not a global.
+- **Instrument / Span** — the concrete gauge: a Counter or Histogram for metrics, a named unit of work with start and end times for traces.
+- **Attributes** — key-value dimensions on a measurement or span. Same concept as Datadog tags and Prometheus labels.
+- **OTLP** — the wire protocol from SDK to collector, typically gRPC on port `4317`.
+
+## The API/SDK split
+
+The most consequential design decision in OTel is that the API and the SDK are separate packages with separate roles.
+
+The **API** is lightweight and is the only thing libraries depend on: `get_meter`, `create_counter`, `.add()`, `start_as_current_span`. If no SDK is installed, every one of these calls is a **no-op** — no errors, near-zero overhead. That is why a third-party library can ship built-in instrumentation without forcing a backend, an exporter, or any cost on applications that do not care.
+
+The **SDK** is assembled exactly once, at application startup: tracer, meter, and logger providers, batch processors, exporters, sampling policy. The application — and only the application — decides whether telemetry is exported, where it goes, and how much is kept.
+
+In practice this looks like instrument definitions scattered across modules (API calls only) plus one `setup_telemetry(app)` function in a `telemetry.py` that wires up the three providers and points them at a collector.
+
+## Correlation mechanism 1: shared Resource
+
+The coarsest correlation mechanism is also the easiest to overlook. Create one Resource and hang it on all three providers:
+
+```python
+resource = Resource.create({
+    SERVICE_NAME: service_name,
+    SERVICE_VERSION: service_version,
+})
+
+TracerProvider(resource=resource)
+MeterProvider(resource=resource)
+LoggerProvider(resource=resource)
+```
+
+Now `service.name` is stamped on every metric point, every span, and every log record, and a single filter in the backend — `service:myapp` — scopes all three signals to the same service at once. It sounds trivial. It stops being trivial the first time you try to correlate signals from a codebase where metrics and logs were configured by different people with different naming.
+
+## Correlation mechanism 2: trace context
+
+Trace context is the spine of the whole system, and it operates at two levels.
+
+**In-process**, the Python SDK keeps an *ambient* current span in `contextvars`, which survives `await`. `tracer.start_as_current_span("prediction.combine")` makes the new span current; any child span created inside — by you or by a library — attaches to it automatically, no parent-passing required.
+
+**Cross-process**, the W3C `traceparent` header carries the context over HTTP:
+
+```text
+traceparent: 00-<trace_id: 32 hex>-<parent_span_id: 16 hex>-<flags: 2 hex>
+```
+
+Client instrumentation injects it on outbound requests; server instrumentation extracts it on inbound ones. One user request becomes one trace across services.
+
+Ambient context is also where I learned my favorite failure mode. The global `FastAPIInstrumentor().instrument()` call works by monkey-patching `FastAPI.__init__`, so it only affects app instances created *after* it runs. In one codebase I work in, the apps were built at module import time, before telemetry setup — so they were silently uninstrumented. No error, no warning. No SERVER span meant no per-request root anchor, so manually created spans grafted themselves onto whatever stale ambient context was left on the event loop, and showed up inside unrelated traces from hours earlier. The fix was the instance-level `FastAPIInstrumentor.instrument_app(app)` (order-independent), plus a regression test pinning the initialization contract.
+
+The lessons generalize: ambient context is **implicit global state** — it never raises, it just quietly gives you wrong parentage. The server span is the per-request root anchor; without it, every manual span is adrift. And monkey-patch-style auto-instrumentation always has an initialization-order contract worth locking down with a test.
+
+## Correlation mechanism 3: logs that know their trace
+
+Connecting logs to traces requires no application changes at all. The OTLP `LoggingHandler` reads the current span context at emit time and stamps `trace_id` and `span_id` onto every log record. Write structured logs — fields as attributes, not interpolated prose — and each line is automatically linked to the request that produced it:
+
+```python
+LOGGER.info("prediction diagnostics", extra={
+    "prediction.model_variant": variant,
+    "prediction.input_names": names,  # high cardinality: logs, not metric tags
+})
+```
+
+One backend click takes you from a trace to that request's logs, and back.
+
+A second war story lives here. After a dependency upgrade, every log line appeared *twice* in the backend — one copy complete, one missing attributes. The cause: a newer version of the logging instrumentation library began auto-installing its own root logging handler, alongside the handler the codebase had added manually. Two OTLP handlers on the root logger, two exports per record. The fix was making the manual handler the *only* export path and leaving a comment explaining why. The durable lesson: your telemetry export path must be unique and understood, and "duplicate log lines, one copy with fewer attributes" is the diagnostic fingerprint of a double handler.
+
+## Correlation mechanism 4: metrics that point at traces
+
+Two routes connect a metric spike back to concrete requests.
+
+The spec's route is **exemplars**: by default, a measurement recorded inside a sampled span carries that span's `trace_id` as an exemplar, so a histogram bucket can link directly to a representative trace.
+
+The pragmatic route, which I trust more day to day, is **shared dimensions**: put the *same bounded attributes, with the same names and values*, on both metric tags and span attributes — `prediction.model_variant`, `prediction.aggregated`, and so on. Then a spike on some metric slice becomes a trace search filtered by identical dimensions, which becomes one request's spans, which link to that request's logs. Spike to trace to log in two pivots, built entirely out of naming discipline.
+
+## One gotcha: temporality
+
+Metric **temporality** is the classic OTel-to-backend integration trap. **Delta** temporality reports only each export interval's increment; **cumulative** reports the running total since process start. Counters and Histograms are usually best exported as delta — that is what lets a backend show per-interval minima and maxima — while an UpDownCounter measures a level, so cumulative matches its semantics:
+
+```python
+temporality = {
+    Counter: AggregationTemporality.DELTA,
+    Histogram: AggregationTemporality.DELTA,
+    UpDownCounter: AggregationTemporality.CUMULATIVE,
+}
+```
+
+The trap is that OTLP's default is cumulative while some backends prefer delta, and the mismatch produces charts that look plausible and are wrong. Configure it explicitly and write down why.
+
+## Self-test
+
+Five questions worth being able to answer without looking up:
+
+1. What breaks if two services share a Resource but not trace context — what can you still correlate, and what can you not?
+2. Why can a third-party library safely call `create_counter` even if the application never installs an SDK?
+3. A manually created span shows up inside a trace from hours ago. What is the likely mechanism, and what was missing?
+4. Every log line appears twice in your backend, one copy with fewer attributes. What is your first hypothesis?
+5. Why is delta temporality the usual choice for a Histogram but not for an UpDownCounter?
