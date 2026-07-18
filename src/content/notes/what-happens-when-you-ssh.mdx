@@ -1,0 +1,127 @@
+---
+title: "What Actually Happens When You Run ssh gpu-node-02"
+date: 2026-06-11
+summary: "SSH is not 'log in with a key' — it is seven distinct stages, and every error message tells you exactly which one failed."
+tags: ["SSH", "Networking", "Linux", "Debugging"]
+---
+
+## The claim
+
+`ssh gpu-node-02` looks like a single action, so when it fails people reach for a single explanation: "something is wrong with my key." Most of the time that is the wrong stage entirely. SSH runs through seven distinct stages before you ever see a prompt, and it consults your client configuration first — long before any key material is touched. Each stage has its own failure signature, which means every SSH error message tells you exactly where in the pipeline you are.
+
+I worked through this recently while sorting out access to a GPU box that sits behind a VPN, and the stage ordering turned out to be the entire story.
+
+## Stage 1: client config
+
+Before anything touches the network, OpenSSH reads `~/.ssh/config` and then the system-wide `/etc/ssh/ssh_config`. `Host` patterns support wildcards — `?` matches exactly one character, `*` matches any run of characters:
+
+```text
+Host gpu-node-??
+    User ops
+```
+
+`gpu-node-02` matches `gpu-node-??`, so this block applies and the login user becomes `ops`. In effect, `ssh gpu-node-02` is really `ssh ops@gpu-node-02`.
+
+The subtle detail is what the block does *not* set: there is no `HostName` line. That means the alias is still the hostname, and SSH will hand the literal string `gpu-node-02` to the system resolver in the next stage. Config patterns rewrite connection parameters; they do not, by themselves, make a name resolvable. Other tools on your machine may keep their own host-to-address mappings, but OpenSSH never reads those — it trusts only its own config files and the resolver.
+
+You never have to guess at the merged result:
+
+```bash
+ssh -G gpu-node-02
+```
+
+prints the final computed configuration — user, hostname, port, identity files — after every matching pattern has been applied. It is the first command I run whenever SSH behaves unexpectedly.
+
+## Stage 2: name resolution
+
+Next, the operating system has to turn `gpu-node-02` into an IP address. Depending on the machine, that answer can come from `/etc/hosts`, ordinary DNS, DNS servers pushed by a VPN, or mesh-network DNS that resolves short device names inside a private overlay network.
+
+If none of those can answer, you get:
+
+```text
+ssh: Could not resolve hostname gpu-node-02
+```
+
+This error arrives before any TCP packet is sent and before any cryptography happens. I once ran `ssh -vvv -o BatchMode=yes -o ConnectTimeout=5 gpu-node-02 true` from a sandboxed environment and watched it die exactly here — no key was ever consulted, because the process never got far enough to need one. If you see this message, debugging your keys is wasted effort; check the VPN, the resolver, or add an explicit `HostName` to the config block instead.
+
+## Stage 3: TCP to port 22
+
+With an IP in hand, SSH opens a plain TCP connection to port 22 (or whatever `Port` the config computed). Two very different failures live here:
+
+- `Connection timed out` — the name resolved, but packets are not coming back. Think unreachable network, a firewall silently dropping traffic, a VPN that is down, or a machine that is powered off.
+- `Connection refused` — packets *are* coming back, and the host actively rejected the connection. The machine is up and reachable, but nothing is listening on that port: `sshd` is stopped, or you are knocking on the wrong port.
+
+Timeout means "I could not get there"; refused means "I got there and was turned away." Distinguishing the two immediately halves your search space.
+
+## Stage 4: negotiating the encrypted channel
+
+Once the TCP connection exists, client and server negotiate the cryptographic parameters of the session:
+
+- **key exchange algorithm** — how the two sides derive a shared session key without ever transmitting it,
+- **cipher** — how the traffic is encrypted,
+- **MAC** — how each message is checked for tampering,
+- **host key algorithm** — which type of key the server will use to prove its identity.
+
+The output of this stage is an encrypted channel. Everything that follows — user authentication, your shell, your port forwards — runs inside it. One detail worth knowing: the server presents its host key as part of the key exchange itself, so the check against `known_hosts` happens as this stage completes, before encryption is switched on — which is why Stage 5 sits between negotiation and authentication.
+
+## Stage 5: verifying the server
+
+Before you prove who you are, the server proves who *it* is. It presents its host key, and the client compares it against the entry recorded in `~/.ssh/known_hosts`. The question being answered: "is this really the same `gpu-node-02` I talked to before?"
+
+On first contact there is no entry yet, so SSH shows you the key fingerprint and asks you to confirm it. If, on a later connection, the presented key no longer matches the stored one, you get the famous warning:
+
+```text
+WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!
+```
+
+Do not reflexively delete the `known_hosts` line to make the warning go away. A changed host key has three plausible causes: the machine was reinstalled, the name now points at a different machine, or someone is intercepting the connection. Confirm which one it is first — the warning exists precisely for the third case.
+
+## Stage 6: proving who you are
+
+Only now, with the server verified, does authentication of the *user* begin. Public-key auth is often described as "logging in with a key," which hides the mechanism. The actual model is a challenge and a signature:
+
+1. The server already holds your **public** key, in the remote `~/.ssh/authorized_keys`.
+2. Your client holds the **private** key, for example `~/.ssh/id_ed25519`.
+3. The server sends a challenge.
+4. The client signs it with the private key.
+5. The server verifies the signature with the public key.
+
+The private key never leaves your machine — nothing secret crosses the wire. If public-key auth fails and the server permits it, SSH falls back to password authentication, which is why the final rejection lists both: `Permission denied (publickey,password)`.
+
+A pairing worth committing to memory: `known_hosts` authenticates the **server** to you; `authorized_keys` authenticates **you** to the server. They are mirror images.
+
+## Stage 7: channels
+
+Authentication succeeded — now SSH opens one or more channels over the encrypted connection. The familiar variants are all just different channel types:
+
+- interactive shell: `ssh gpu-node-02`
+- one-off remote command: `ssh gpu-node-02 hostname`
+- file transfer: `scp` and `sftp`
+- local port forwarding: `ssh -L 5001:10.0.0.5:5001 gpu-node-02`
+
+That last one deserves a hop-by-hop walk-through, because the three-part syntax confuses everyone at first. `-L 5001:10.0.0.5:5001` means: SSH listens on `localhost:5001` on *your* machine; any connection to it is wrapped into the encrypted channel and carried to `gpu-node-02`; then `gpu-node-02` — using *its* network position — opens a plain connection to `10.0.0.5:5001` and shuttles bytes both ways. The destination is resolved from the remote side, which is the whole point: you can reach services that only the remote host can see.
+
+## Reading errors by stage
+
+The payoff of the seven-stage model is that the classic errors map cleanly onto it:
+
+| Error | Stage that failed |
+|---|---|
+| `Could not resolve hostname` | name resolution — check DNS, VPN, `/etc/hosts`, or set `HostName` |
+| `Connection timed out` | TCP — network path, firewall, machine down |
+| `Connection refused` | TCP — host reachable, but nothing listening on the port |
+| `REMOTE HOST IDENTIFICATION HAS CHANGED` | server verification — investigate before touching `known_hosts` |
+| `Permission denied (publickey,password)` | user authentication — you reached and verified the server; the problem finally *is* your key or account |
+
+Notice how much is settled before keys enter the picture. `Permission denied` is the only one of the five where key debugging is the right move — and it is also the error that tells you everything upstream worked.
+
+## Debugging kit
+
+Two commands cover almost every SSH investigation:
+
+```bash
+ssh -G gpu-node-02    # the merged client config: user, hostname, port, identity files
+ssh -vvv gpu-node-02  # a running commentary of every stage
+```
+
+In `-vvv` output, read for the stage transitions: config files being applied, the address being resolved and connected to, the key exchange lines, the moment the host key is checked against `known_hosts`, and then each authentication method being offered and tried. The last stage mentioned before the failure *is* your diagnosis. Once you stop treating SSH as a single opaque step and start reading it as seven ordered ones, most "SSH is broken" moments resolve in a minute or two.
