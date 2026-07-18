@@ -12,18 +12,12 @@ const navItems = [
 
 <header class="sticky top-0 z-40 border-b border-[#dadce0] bg-white/95">
   <nav class="page-shell flex min-h-16 items-center justify-between gap-6" aria-label="Primary navigation">
-    <a href="/" class="flex items-center gap-3 text-base font-medium text-[#202124]" aria-label="Xinyang Wu home">
-      <span class="grid grid-cols-2 gap-0.5" aria-hidden="true">
-        <span class="h-1.5 w-1.5 bg-[#4285f4]"></span>
-        <span class="h-1.5 w-1.5 bg-[#ea4335]"></span>
-        <span class="h-1.5 w-1.5 bg-[#fbbc04]"></span>
-        <span class="h-1.5 w-1.5 bg-[#34a853]"></span>
-      </span>
+    <a href="/" class="text-base font-medium text-[#202124]" aria-label="Xinyang Wu home">
       {site.name}
     </a>
     <div class="hidden items-center gap-6 md:flex">
       {navItems.map((item) => (
-        <a class="border-b-2 border-transparent py-5 text-sm font-medium text-[#5f6368] hover:border-[#1a73e8] hover:text-[#202124]" href={item.href}>
+        <a class="border-b border-transparent py-5 text-sm font-medium text-[#5f6368] hover:border-[#202124] hover:text-[#202124]" href={item.href}>
           {item.label}
         </a>
       ))}

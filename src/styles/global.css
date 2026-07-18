@@ -18,7 +18,7 @@ body {
 }
 
 ::selection {
-  @apply bg-blue-200 text-slate-950;
+  @apply bg-slate-200 text-slate-950;
 }
 
 a {
@@ -35,7 +35,7 @@ a {
   }
 
   .eyebrow {
-    @apply text-sm font-medium text-blue-700;
+    @apply text-sm font-medium text-slate-600;
   }
 
   .section-title {
@@ -47,15 +47,15 @@ a {
   }
 
   .button-primary {
-    @apply border-[#1a73e8] bg-[#1a73e8] text-white hover:border-[#185abc] hover:bg-[#185abc];
+    @apply border-slate-950 bg-slate-950 text-white hover:border-slate-700 hover:bg-slate-700;
   }
 
   .button-secondary {
-    @apply border-[#dadce0] bg-white text-[#1a73e8] hover:border-[#a8c7fa] hover:bg-[#f8fafd];
+    @apply border-[#dadce0] bg-white text-slate-950 hover:border-slate-500 hover:bg-slate-50;
   }
 
   .text-link {
-    @apply text-sm font-medium text-[#1a73e8] hover:text-[#174ea6] hover:underline;
+    @apply text-sm font-medium text-slate-800 underline decoration-slate-300 underline-offset-4 hover:decoration-slate-800;
   }
 
   .tag {
@@ -83,7 +83,7 @@ a {
   }
 
   .note-content li::marker {
-    @apply text-blue-700;
+    @apply text-slate-500;
   }
 
   .note-content code {

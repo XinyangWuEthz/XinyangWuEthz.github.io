@@ -18,10 +18,9 @@ const evidenceLinks = [
 
 <article class={`border-t border-[#dadce0] py-8 ${isPrimary ? "lg:col-span-2" : ""}`}>
   <div class="flex flex-wrap items-center justify-between gap-3">
-    <span class="text-sm font-medium text-[#1a73e8]">{isPrimary ? "Featured system" : `Project ${index + 1}`}</span>
+    <span class="text-sm font-medium text-[#5f6368]">{isPrimary ? "Featured system" : `Project ${index + 1}`}</span>
     {project.status && (
-      <span class="inline-flex items-center gap-2 text-xs font-medium text-[#188038]">
-        <span class="h-2 w-2 bg-[#34a853]" aria-hidden="true"></span>
+      <span class="text-xs font-medium text-[#5f6368]">
         {project.status}
       </span>
     )}
@@ -31,7 +30,7 @@ const evidenceLinks = [
   </h3>
   <p class="mt-3 leading-7 text-[#5f6368]">{project.subtitle}</p>
   <ul class={`${isPrimary ? "md:grid-cols-2" : ""} mt-5 grid gap-3 pl-5 text-sm leading-6 text-slate-700`}>
-    {project.bullets.map((bullet) => <li class="list-disc marker:text-[#1a73e8]">{bullet}</li>)}
+    {project.bullets.map((bullet) => <li class="list-disc marker:text-[#5f6368]">{bullet}</li>)}
   </ul>
   <div class="mt-6 flex flex-wrap gap-2">
     {project.tags.map((tag) => <span class="tag">{tag}</span>)}

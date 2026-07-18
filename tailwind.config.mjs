@@ -7,9 +7,7 @@ export default {
         ink: "#202124",
         muted: "#5f6368",
         paper: "#ffffff",
-        line: "#dadce0",
-        accent: "#1a73e8",
-        emerald: "#188038"
+        line: "#dadce0"
       }
     }
   },
