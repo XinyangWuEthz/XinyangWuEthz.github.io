@@ -1,0 +1,156 @@
+---
+title: "Refactoring OpenTelemetry Metrics: from God Class to Per-Subsystem Modules"
+date: 2026-06-20
+summary: "What a metrics-architecture refactor taught me about singletons, mixins, cardinality, and why a metric name is a public API."
+tags: ["OpenTelemetry", "Python", "Refactoring", "Observability"]
+---
+
+## The constraint that shapes everything
+
+A refactor that recently landed in a codebase I work in replaced our metrics god class with per-subsystem modules. The design was a colleague's work, not mine. But studying the change, and migrating my own instruments over to the new pattern, taught me more about OpenTelemetry's design constraints than any tutorial had.
+
+The constraint that shapes everything is easy to state: an OTel **instrument** — a counter, a histogram, an observable gauge — can be created once per process and never unregistered. Register the same instrument twice and, depending on the SDK, you get warnings or subtly duplicated data. So every metrics architecture in an OTel codebase is really an answer to one question: **where does the process-level singleton live?**
+
+The old answer in our codebase was one global `Metrics` object, built at startup and threaded through the application by dependency injection. That does solve the singleton problem. It also creates a monster.
+
+## The anti-pattern: one god class of mixins
+
+Because every subsystem needed its instruments on that one global object, the object accreted everything. The composition mechanism was multiple inheritance:
+
+```python
+class GeneralMetricsMixin: ...      # each defines instrument fields + an _init_*() method
+class AcquisitionMetricsMixin: ...
+class CameraMetricsMixin: ...
+
+class Metrics(GeneralMetricsMixin, AcquisitionMetricsMixin, ..., CameraMetricsMixin):
+    def __post_init__(self):
+        self._init_general_metrics()
+        self._init_acquisition_metrics()
+        ...
+```
+
+Beyond the usual god-object complaints — the class kept growing, and metric definitions lived far from the code that recorded them — mixins add a sharper failure mode. Mixins compose through Python's method resolution order, and **same-named attributes silently override each other**. If two mixins both define `_duration_metric`, the MRO keeps one and the other is shadowed without any error. A metric can simply stop being recorded, and nothing tells you.
+
+The old code carried the fingerprint of this hazard:
+
+```python
+def measurement_stopped(self):
+    GeneralMetricsMixin.measurement_stopped(self)  # explicit class to dodge a name collision
+```
+
+When plain `self.measurement_stopped()` is unsafe and methods must be called through an explicit base class, the design is already fighting you. The general lesson is the classic one: **composition over inheritance**. Independent small classes cannot shadow each other's fields.
+
+## The replacement pattern
+
+The refactor deleted the god class and gave each subsystem its own module with a uniform shape: a scope constant, a frozen dataclass holding the expensive OTel handles, a memoized factory, and a cheap wrapper class you can construct per request.
+
+```python
+import dataclasses as dc
+import functools
+
+from opentelemetry import metrics
+
+_SCOPE = "myapp.api.prediction"
+
+@dc.dataclass(frozen=True, slots=True)
+class _Instruments:               # holds only the OTel handles
+    failure_counter: metrics.Counter
+    duration: metrics.Histogram
+
+@functools.cache                  # memoization as the process-level singleton
+def _get_instruments() -> _Instruments:
+    meter = metrics.get_meter(_SCOPE)
+    return _Instruments(
+        failure_counter=meter.create_counter(name=f"{meter.name}.failures"),
+        duration=meter.create_histogram(name=f"{meter.name}.duration", unit="s"),
+    )
+
+class PredictionMetrics:          # cheap; construct one per request
+    def __init__(self, settings):
+        self._instruments = _get_instruments()
+        self._settings = settings
+
+    def record_failure(self, *, cause: str) -> None:
+        self._instruments.failure_counter.add(
+            1, {**_settings_tags(self._settings), "cause": cause}
+        )
+```
+
+`@functools.cache` is doing the singleton's job: the factory body runs once per process, which is exactly the guarantee the instruments need, with no global object and no injection boilerplate.
+
+There is a nice separation hiding in this shape. `_Instruments` is the expensive shared state — created once, immutable, identical for every caller. `PredictionMetrics` is the cheap per-request context — it binds the current settings in its constructor so call sites don't have to pass them into every method. That split of heavyweight shared state from lightweight context is the **flyweight** idea, and it shows up everywhere: HTTP clients, database pools, loaded model weights.
+
+Just as important: each subsystem's metric definitions now live next to the code that records them. Changing one feature touches one module, not a central registry.
+
+## Metric names are a public API
+
+The most instructive detail of the refactor is what did *not* change: the emitted metric names. The internals were rewritten, but `myapp.api.prediction.failures` kept flowing under exactly that name.
+
+Dashboards, monitors, and saved queries reference metric names as plain strings in another system. No compiler sees them, no test fails when they break. That makes a metric name a **contract**: internals can change freely, but renaming a metric is a breaking change for everyone downstream. When our scope was eventually renamed, the same change also updated the monitoring docs and the affected dashboards — a rename is a migration, not an edit.
+
+The same discipline applies to database column names, REST paths, and event schemas: anything other systems address by name is a public API, whatever your codebase thinks of it.
+
+## Cardinality is the bill
+
+OTel calls them **attributes**, some backends say tags, Prometheus says labels — same thing: key-value pairs on each data point, so you can later filter and group by them. The backend stores **one time series per unique combination of metric name and tag values**, and that product is what you pay for.
+
+Our failure counter carries tags like `model_variant` (5 values), `aggregated` (2), `remove_outliers` (2), `normalization` (3), and `cause` (4):
+
+```text
+5 × 2 × 2 × 3 × 4 = 240 time series   # fine
+```
+
+Now add one tag holding a raw floating-point input, with effectively unlimited distinct values. Every distinct float multiplies those 240 series, and you get millions of series, a painful invoice, and slow queries — a classic **cardinality explosion**.
+
+Two defenses survived the refactor:
+
+```python
+# 1. Collapse unbounded values before tagging: strips float noise
+#    so 2.0000001 becomes "2"; the parameter only takes a handful
+#    of values in practice anyway.
+def _scale_tag(scale_factor: float) -> str:
+    return f"{scale_factor:g}"
+```
+
+The second is a rule of thumb: **log it, don't tag it**. Per-request detail — input names, exact intermediate values — goes into structured logs, which handle high cardinality natively and carry the trace id, so you can pivot from a metric spike to the traces and logs of the requests behind it. I wrote more about that pivot in [OpenTelemetry from first principles](/notes/opentelemetry-first-principles/).
+
+Tags are for bounded dimensions: enums, booleans, small buckets. Everything else has a better home.
+
+## Push vs pull instruments
+
+OTel has two ways to feed a metric, and picking wrong makes code awkward.
+
+| | Push (synchronous) | Pull (observable) |
+|---|---|---|
+| Model | report when an event happens | callback answers "what is it now?" |
+| Instruments | `Counter`, `Histogram` via `.add` / `.record` | `ObservableGauge` with a callback |
+| Fits | discrete events: failures, durations | levels: temperature, queue depth |
+
+Events push; levels get pulled. A failure is a moment in time, so you `.add(1)` when it happens. A queue depth has no event — it just *is* — so the SDK periodically invokes your callback at collection time.
+
+Sometimes business code wants a push-style API for something that is really a level. The codebase bridges that with a small helper: callers `set()` the latest value whenever they like, and a registered callback hands the current snapshot to the SDK when collection runs. The concurrency detail is worth copying — hold the lock only to copy, never while yielding:
+
+```python
+class ObservableMetric:
+    """Push-style set() bridged onto a pull-style observable gauge."""
+
+    def set(self, value: float, attributes: dict) -> None:
+        key = tuple(sorted(attributes.items()))
+        with self._lock:
+            self._values[key] = value
+
+    def _observe(self, options):
+        with self._lock:
+            snapshot = list(self._values.items())   # copy under the lock
+        for key, value in snapshot:                 # yield outside it
+            yield metrics.Observation(value, dict(key))
+```
+
+Keeping the critical section to a dict copy means a slow exporter can never block the hot path that calls `set()`.
+
+## Self-test
+
+1. Why does OpenTelemetry force some kind of process-level singleton on you, and how does `functools.cache` satisfy it?
+2. What is the silent failure mode of composing metrics via mixins, and what code smell is its fingerprint?
+3. A counter has five tags with 5, 2, 2, 3, and 4 possible values. How many time series is that — and what happens when someone adds a raw-float tag?
+4. You need to track failed requests and current queue depth. Which instrument type fits each, and why?
