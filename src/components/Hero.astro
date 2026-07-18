@@ -2,65 +2,64 @@
 import { site } from "@data/site";
 ---
 
-<section class="relative overflow-hidden border-b border-slate-200 bg-white">
-  <div class="page-shell grid items-center gap-10 py-12 sm:py-14 lg:min-h-[calc(100svh-8rem)] lg:grid-cols-[1.04fr_0.96fr] lg:py-16">
+<section class="border-b border-[#dadce0] bg-white">
+  <div class="page-shell grid gap-12 py-16 sm:py-20 lg:grid-cols-[1.25fr_0.75fr] lg:items-center lg:py-24">
     <div>
-      <p class="eyebrow">Software Engineer / AI Infrastructure / Backend Systems</p>
-      <h1 class="mt-4 text-5xl font-extrabold leading-none tracking-normal text-slate-950 sm:text-6xl">
+      <div class="mb-8 flex gap-1" aria-hidden="true">
+        <span class="h-1 w-10 bg-[#4285f4]"></span>
+        <span class="h-1 w-10 bg-[#ea4335]"></span>
+        <span class="h-1 w-10 bg-[#fbbc04]"></span>
+        <span class="h-1 w-10 bg-[#34a853]"></span>
+      </div>
+      <h1 class="text-5xl font-medium leading-none tracking-normal text-[#202124] sm:text-6xl">
         Xinyang Wu
       </h1>
-      <p class="mt-5 text-xl font-bold leading-7 text-slate-800">
-        Software Engineer &middot; AI Infrastructure &middot; Backend Systems
+      <p class="mt-5 text-xl font-normal leading-8 text-[#3c4043] sm:text-2xl">
+        Software Engineer focused on AI Infrastructure
       </p>
-      <p class="mt-6 max-w-2xl text-lg leading-8 text-slate-600">
-        ETH Z&uuml;rich MSc. Building production-grade Python/FastAPI systems, grounded
-        LLM assistants, data pipelines, observability, and now Go/Kubernetes infrastructure.
+      <p class="mt-7 max-w-2xl text-lg leading-8 text-[#5f6368]">
+        ETH Z&uuml;rich MSc. Building grounded LLM assistants, production Python/FastAPI
+        services, retrieval and evaluation systems, data pipelines, and Go/Kubernetes infrastructure.
       </p>
-      <p class="mt-4 max-w-2xl text-base leading-7 text-slate-600">
-        Current engineering focus: distributed systems, backend engineering,
-        Kubernetes, Go, and production AI platforms.
+      <p class="mt-3 max-w-2xl text-base leading-7 text-[#5f6368]">
+        Current engineering focus: reliable AI services, backend systems, cloud-native
+        delivery, observability, and production evaluation workflows.
       </p>
-      <div class="mt-6 grid max-w-2xl gap-3 sm:grid-cols-2">
-        <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
-          <p class="text-xs font-extrabold uppercase tracking-normal text-slate-600">Latest production update</p>
-          <p class="mt-2 text-sm font-semibold leading-6 text-slate-900">
-            Documentation and Evaluation Assistant - routed retrieval, source evidence, NDJSON streaming.
-          </p>
-        </div>
-        <div class="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
-          <p class="text-xs font-extrabold uppercase tracking-normal text-emerald-700">Now building</p>
-          <p class="mt-2 text-sm font-semibold leading-6 text-slate-900">
-            Go/Kubernetes service platform - Go, Docker, Helm, HPA, probes, GitHub Actions.
-          </p>
-        </div>
-      </div>
-      <div class="mt-6 flex flex-wrap gap-3" aria-label="Primary actions">
+      <div class="mt-8 flex flex-wrap items-center gap-3" aria-label="Primary actions">
         <a class="button button-primary" href={site.links.projects}>View Projects</a>
         <a class="button button-secondary" href={site.links.resume}>Download Resume</a>
-        <a class="button button-secondary" href={site.links.github}>GitHub</a>
-        <a class="button button-secondary" href={site.links.linkedin}>LinkedIn</a>
-        <a class="button button-secondary" href={site.links.email}>Email</a>
+        <a class="text-link px-2" href={site.links.github}>GitHub</a>
+        <a class="text-link px-2" href={site.links.linkedin}>LinkedIn</a>
+        <a class="text-link px-2" href={site.links.email}>Email</a>
       </div>
     </div>
-    <aside class="hidden lg:block">
-      <div class="overflow-hidden rounded-lg border border-slate-200 bg-slate-950 shadow-soft">
-        <img src="/infra-hero.png" alt="Abstract infrastructure diagram" class="h-48 w-full object-cover opacity-80" />
-        <div class="border-t border-white/10 p-5">
-          <p class="text-xs font-extrabold uppercase tracking-normal text-blue-200">Recent system evidence</p>
-          <div class="mt-5 grid gap-3">
-            {[
-              ["Assistant stream", "FastAPI service with token and completion events over NDJSON."],
-              ["Retrieval policy", "Actionable and background evidence pools with technology and transferability boundaries."],
-              ["Frontend grounding", "Markdown, equations, intent chips, grounding strength, and source links."],
-              ["Release path", "Generated corpus checks, CI validation, and reusable assistant drawers."]
-            ].map(([title, body]) => (
-              <div class="rounded-lg border border-white/10 bg-white/[0.04] p-4">
-                <p class="text-sm font-extrabold text-white">{title}</p>
-                <p class="mt-1 text-sm leading-6 text-slate-300">{body}</p>
-              </div>
-            ))}
+    <aside class="border-t border-[#dadce0] pt-8 lg:border-l lg:border-t-0 lg:pl-10 lg:pt-0" aria-label="Current engineering updates">
+      <p class="text-sm font-medium text-[#202124]">Current work</p>
+      <div class="mt-5 divide-y divide-[#dadce0] border-y border-[#dadce0]">
+        <div class="py-5">
+          <div class="flex items-center gap-3">
+            <span class="h-2.5 w-2.5 bg-[#34a853]" aria-hidden="true"></span>
+            <p class="text-sm font-medium text-[#188038]">Latest production update</p>
           </div>
+          <p class="mt-2 text-sm leading-6 text-[#5f6368]">
+            Documentation and Evaluation Assistant with routed retrieval, source evidence, and NDJSON streaming.
+          </p>
         </div>
+        <div class="py-5">
+          <div class="flex items-center gap-3">
+            <span class="h-2.5 w-2.5 bg-[#4285f4]" aria-hidden="true"></span>
+            <p class="text-sm font-medium text-[#1a73e8]">Now building</p>
+          </div>
+          <p class="mt-2 text-sm leading-6 text-[#5f6368]">
+            Go/Kubernetes service platform with Docker, Helm, HPA, probes, and GitHub Actions.
+          </p>
+        </div>
+      </div>
+      <div class="mt-6 grid grid-cols-4 gap-2" aria-hidden="true">
+        <span class="h-1 bg-[#4285f4]"></span>
+        <span class="h-1 bg-[#ea4335]"></span>
+        <span class="h-1 bg-[#fbbc04]"></span>
+        <span class="h-1 bg-[#34a853]"></span>
       </div>
     </aside>
   </div>

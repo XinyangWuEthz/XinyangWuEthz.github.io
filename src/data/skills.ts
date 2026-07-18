@@ -5,12 +5,12 @@ export type SkillGroup = {
 
 export const skills: SkillGroup[] = [
   {
-    title: "Backend Systems",
-    body: "FastAPI, REST APIs, async and NDJSON streaming, session management, indexing, query optimization, SQL, data ingestion."
-  },
-  {
     title: "AI Infrastructure",
     body: "LLM services, RAG-style grounding, question routing, retrieval policy, source coverage, evaluation harnesses, model validation gates."
+  },
+  {
+    title: "Backend Systems",
+    body: "FastAPI, REST APIs, async and NDJSON streaming, session management, indexing, query optimization, SQL, data ingestion."
   },
   {
     title: "Cloud Native / DevOps",

@@ -4,15 +4,12 @@ export default {
   theme: {
     extend: {
       colors: {
-        ink: "#0f172a",
-        muted: "#475569",
-        paper: "#f8fafc",
-        line: "#dbe3ee",
-        accent: "#2563eb",
-        emerald: "#059669"
-      },
-      boxShadow: {
-        soft: "0 18px 60px rgba(15, 23, 42, 0.08)"
+        ink: "#202124",
+        muted: "#5f6368",
+        paper: "#ffffff",
+        line: "#dadce0",
+        accent: "#1a73e8",
+        emerald: "#188038"
       }
     }
   },
