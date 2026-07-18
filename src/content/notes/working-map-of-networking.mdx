@@ -1,0 +1,133 @@
+---
+title: "A Working Map of Computer Networking"
+date: 2026-06-12
+summary: "Layering and encapsulation are the whole trick — a compact map of the five-layer model with the details that matter in practice."
+tags: ["Networking", "TCP", "HTTP", "DNS"]
+---
+
+## Layering is the whole trick
+
+Networking looks like a pile of acronyms until you notice the one organizing idea behind all of it: **layering**. Each layer solves exactly one problem and offers a clean interface to the layer above. That is why you can swap WiFi for a cable — a link-layer change — and your browser, living at the application layer, never notices.
+
+The OSI seven-layer model is the theory; the five-layer TCP/IP model is what people actually reason with:
+
+| Layer | Job | Representative protocols | Addressing unit |
+|---|---|---|---|
+| Application | conversation rules between programs | HTTP, DNS, SSH, SMTP | — |
+| Transport | end-to-end delivery, reliability, ports | TCP, UDP | port |
+| Network | addressing and routing across networks | IP, ICMP | IP address |
+| Link | delivery within one physical network | Ethernet, ARP | MAC address |
+| Physical | bits to signals | copper, fiber, radio | — |
+
+The mechanism that stitches the layers together is **encapsulation**. As data moves down the stack, each layer wraps it in its own header: your HTTP request becomes the payload of a TCP segment, which becomes the payload of an IP packet, which becomes the payload of an Ethernet frame. On the receiving side, each layer peels off its header and hands the payload up. Once encapsulation clicks, most of networking stops being trivia and starts being a map.
+
+## TCP vs UDP
+
+The transport layer offers two very different contracts:
+
+| | TCP | UDP |
+|---|---|---|
+| Connection | connection-oriented (handshake first) | connectionless (just send) |
+| Reliability | lost segments are retransmitted | no guarantees; packets may vanish |
+| Ordering | delivered in order | no ordering promise |
+| Overhead | heavier, 20-byte header | light, 8-byte header |
+| Typical use | web pages, file transfer, mail | video calls, games, DNS queries |
+
+My favorite mnemonic: **TCP is a phone call** — you establish the line first, confirm the other side is listening, and speak in order. **UDP is a postcard** — you drop it in the mailbox and hope.
+
+The interesting question is why anyone would choose the postcard. Real-time video is the canonical answer: in a live stream, a dropped frame is better than a stalled one. If TCP paused the stream to retransmit a frame from 300 ms ago, you would get exactly the freezing behavior you hate. A brief visual glitch and moving on is the correct trade, so real-time media rides on UDP and handles loss at the application layer.
+
+## Opening and closing a connection
+
+TCP's reliability starts before any data flows, with the **three-way handshake**:
+
+```text
+client -> SYN         "I want to connect; my sequence number is x"
+server -> SYN + ACK   "Ready on my side; my sequence is y, and I saw your x"
+client -> ACK         "I saw your y — data can flow"
+```
+
+Why three messages and not two? Because both sides need evidence that **both directions work** — that each peer can send and receive. After two messages, the server still has no proof the client ever heard its reply. Two-message setup also opens the door to a stale `SYN` that wandered the network for a while: it could conjure a phantom connection the client never intended. The third message closes both gaps.
+
+Teardown takes **four** messages:
+
+```text
+client -> FIN   "No more data from me"
+server -> ACK   "Understood"
+server -> FIN   "I am finished too"
+client -> ACK   "Goodbye"
+```
+
+Why do the ACK and FIN not always merge the way SYN and ACK do during setup? Because closing is **one-directional**. When the client says it has nothing left to send, the server may still have responses in flight. It acknowledges the client's FIN immediately, keeps sending until it is done, and only then sends its own FIN. Half-closed connections are a feature, not an accident. That said, when the server has nothing left to send — the typical short-lived HTTP exchange — it does combine the two into a single FIN+ACK segment, collapsing the close to three segments, which is exactly what most packet captures show.
+
+## From URL to pixels
+
+Typing a URL and hitting enter exercises every layer in sequence, which makes it the best single walkthrough in networking:
+
+1. **DNS lookup** — the domain name becomes an IP address (application layer, usually over UDP).
+2. **TCP handshake** — three messages to the server's IP (transport layer).
+3. **TLS handshake** — for HTTPS, the two sides negotiate a symmetric key so everything after is encrypted.
+4. **HTTP request** — `GET /` plus headers travels through the established, encrypted channel.
+5. **Response** — the server returns a status code and the HTML body.
+6. **Render** — the browser parses HTML, CSS, and JavaScript, building the page and often firing more requests for images and scripts, each repeating some of the steps above.
+7. **Teardown** — connections close with the four-message sequence when they are no longer needed.
+
+Every hop names its layer: DNS at the application layer, TCP at transport, IP routing at the network layer, Ethernet or WiFi at the link layer underneath it all. If you can narrate this end to end, the layer model has done its job.
+
+## HTTP essentials
+
+HTTP method semantics are worth internalizing, because retry logic and caching depend on them:
+
+| Method | Idempotent | Safe (read-only) | Meaning |
+|---|---|---|---|
+| GET | yes | yes | fetch |
+| PUT | yes | no | set or overwrite |
+| DELETE | yes | no | remove |
+| POST | no | no | create |
+
+Idempotent means repeating the request leaves the system in the same state — which is why a client may safely retry a timed-out PUT but should think twice before retrying a POST.
+
+Status codes come in classes: 1xx informational, 2xx success (200), 3xx redirection (301, 304), 4xx client errors (401, 403, 404), 5xx server errors (500, 502, 503). The class tells you who to blame before you read the digits.
+
+Finally, HTTP is **stateless**: the protocol itself remembers nothing between requests. Login state is layered on top with cookies, server-side sessions, or signed tokens — three different answers to the same question of how a stateless protocol keeps recognizing you.
+
+## DNS resolution
+
+Name resolution walks a chain of lookups — most of them caches — and the first hit wins:
+
+```text
+browser cache -> hosts file (/etc/hosts) -> OS DNS cache -> local resolver (often the ISP's)
+    -> root servers (.) -> TLD servers (.com) -> authoritative servers
+```
+
+One distinction worth keeping sharp: the hosts file is **static configuration, not a cache**. The OS DNS cache proper — systemd-resolved on Linux, mDNSResponder on macOS — stores previous answers with their TTLs and can simply be flushed when it goes stale, while a hosts-file entry sits there until someone edits it out. When you are chasing a wrong DNS answer, knowing which of the two you are looking at decides the fix.
+
+The local resolver typically does the legwork for you — a **recursive query** — walking from the root to the top-level domain to the authoritative server, then caching the answer with its TTL so the next lookup short-circuits. Queries usually travel over **UDP port 53** because they are tiny and speed matters; large responses and zone transfers fall back to TCP.
+
+## Flow control vs congestion control
+
+These two TCP mechanisms are easy to conflate because both slow a sender down. They protect different victims:
+
+| | Flow control | Congestion control |
+|---|---|---|
+| Protects | the receiving host | the network as a whole |
+| Mechanism | sliding window — the receiving side advertises how much it can accept | slow start, congestion avoidance, fast retransmit |
+| Viewpoint | point-to-point, between two endpoints | global, across everyone sharing the path |
+
+Flow control is a courtesy between two machines: do not overrun the buffer at the far end. Congestion control is a social contract: probe the shared network gently, back off when packets start disappearing, because loss is the network's way of saying it is full.
+
+## Addresses and NAT
+
+An IPv4 address is 32 bits, and three ranges are reserved for private networks: `10.0.0.0/8`, `172.16.0.0/12`, and `192.168.0.0/16`. **CIDR** notation encodes the split between network and host bits: `/24` means the first 24 bits name the network, leaving 8 bits for hosts — 256 addresses, of which about 254 are usable.
+
+**NAT** is why your whole household shares one public IP. The router maps many private addresses to a single public one, distinguishing flows by port number. It is also why inbound connections to a machine behind NAT are hard: nobody outside can address it directly, which is the root problem that port forwarding and tunneling solutions exist to solve.
+
+## Where to go deeper
+
+Three threads I want to pull on next:
+
+- **TLS in detail** — the hybrid-encryption handshake, best studied side by side with SSH's version of the same idea. I walked through the SSH stages in [a separate note](/notes/what-happens-when-you-ssh/).
+- **HTTP/1.1 vs 2 vs 3** — head-of-line blocking, multiplexing, and why HTTP/3 abandons TCP for QUIC.
+- **Load balancing and CDNs** — where this map meets systems design.
+
+None of this is exotic. But having the map means that when something breaks — a timeout, a refused connection, a stale DNS answer — you know which layer to interrogate first.
