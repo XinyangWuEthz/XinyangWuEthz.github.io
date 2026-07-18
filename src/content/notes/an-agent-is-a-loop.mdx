@@ -1,0 +1,119 @@
+---
+title: "An Agent Is a Loop: a Working Mental Model for Agentic Systems"
+date: 2026-06-18
+summary: "Strip away the hype and an agent is an LLM in a loop that can call tools, remember things, and ask for help. Everything else is engineering around that loop."
+tags: ["LLM", "Agents", "Architecture", "AI Engineering"]
+---
+
+## The one-sentence definition
+
+Strip away the vendor decks and an agent is exactly this: **a language model placed inside a loop that can call tools, remember things, and hand control back to a human when it gets stuck.** Everything else — orchestration frameworks, memory stores, multi-agent topologies — is engineering around that loop.
+
+The loop has a name: **ReAct** (Reasoning + Acting). Reason about the current state, take one action, observe the result, reason again, until the goal is met. In pseudocode it is embarrassingly small:
+
+```python
+def run_agent(task: str) -> str:
+    messages = [SYSTEM_PROMPT, user_message(task)]
+    while True:
+        reply = llm(messages, tools=TOOL_SCHEMAS)
+        if not reply.tool_calls:
+            return reply.text                       # done: final answer
+        messages.append(reply)                      # keep the model's own turn
+        for call in reply.tool_calls:
+            result = execute(call)                  # code runs the tool
+            messages.append(tool_result(call.id, result))
+```
+
+Every concept below is an answer to an engineering problem this loop creates.
+
+## Five layers
+
+When I sketch an agentic system, I draw five layers:
+
+1. **Governance** — how much autonomy the agent gets, and when it must escalate to a human.
+2. **The orchestration loop** — reason, act, observe, repeat until done.
+3. **Capabilities** — tool calling, retrieval and grounding, integration with real workflows.
+4. **State** — short-term context plus long-term memory.
+5. **The factory** — how agents are created and configured in the first place.
+
+The loop sits in the middle. Governance constrains it from above; capabilities and state feed it from below; the factory stamps out configured instances of it. The layers are worth keeping separate because they fail differently: a grounding bug produces confident nonsense, while a governance bug produces an agent that deletes something it should have asked about first.
+
+## Who owns the control flow
+
+The most consequential design decision is who decides the next step.
+
+**Model-driven** control flow lets the LLM pick the next tool call. It is flexible and handles situations you never anticipated — and it is also unpredictable, hard to reproduce, and capable of wandering off or looping forever.
+
+**Deterministic workflows** hard-code the control flow and use the model only inside individual nodes. They are reproducible, testable, and cheap.
+
+Between the extremes sit a few named patterns: **prompt chaining** (a fixed pipeline of LLM steps), **routing** (classify the input first, then dispatch), **orchestrator-worker** (one coordinator decomposes a task and farms pieces out), and **evaluator-optimizer** (generate, critique, revise).
+
+The real question is never "should we build an agent?" It is **which decisions go to the model and which stay in code**. Default to a workflow; hand a decision to the model only when the next step genuinely cannot be known in advance.
+
+## Tool calling and the security boundary
+
+Tool calling is how the loop touches the world, and its mechanics matter:
+
+1. The model receives a list of tools, each with a name, a description, and a JSON schema for its parameters.
+2. When the model wants a tool, it emits a **structured call** — a name plus arguments. It does not execute anything.
+3. The **harness** — your program — validates and executes the call, then appends the result to the conversation.
+4. The model reads the result and continues.
+
+Step 3 is the security boundary. **The model requests; code decides.** Every permission check, rate limit, and audit log lives in the harness, which is precisely why the model must never execute anything directly.
+
+**MCP** (Model Context Protocol) standardizes the plumbing — a common way to plug tools and data sources into any model, a USB port for tools instead of a custom connector per integration.
+
+Two failure modes recur. Vague tool descriptions produce erratic tool choice: the description is the interface, so write it like documentation. And too many tools degrade selection quality — past a couple dozen, retrieve over the tool catalog and present only the relevant few.
+
+## Grounding
+
+A model's knowledge is frozen at training time, and it fills gaps confidently and wrongly. **Grounding** means binding answers to verifiable sources, and the mainstream implementation is **RAG**: embed the question, find the most similar chunks in a vector store, put them in the prompt, and answer from them.
+
+Each stage has its own failure point. Chunks too large drown the signal in noise; too small, they sever meaning. An embedding model mismatched to the domain retrieves plausible-looking irrelevance. Pure vector search misses exact keywords, which is why serious pipelines run **hybrid search** (BM25 plus vectors) and add a **reranker** to reorder candidates. Citations on the final answer keep it auditable.
+
+The slogan worth remembering: **retrieval is the means; grounding is the goal.** I go deeper on the pipeline and its evaluation in [RAG beyond the demo](/notes/rag-beyond-the-demo/).
+
+## State
+
+An agent has two memories with very different physics.
+
+**Short-term memory is the context window** — finite and expensive. When it fills up, the options are: **compaction** (summarize older turns), a **sliding window** (drop the oldest), **offloading** (write intermediate results to an external store), and **retrieval** (pull back only the relevant fragments on demand).
+
+**Long-term memory is anything that survives the session**: plain files and structured records (deterministic, human-inspectable) or vector stores (fetched back by semantic similarity). Two more terms earn their keep: **checkpointing**, so a crashed run restarts from the last saved state instead of from zero, and the **episodic versus semantic** split — a log of what happened versus distilled knowledge extracted from it.
+
+## One agent or many
+
+Multi-agent architectures buy exactly three things:
+
+1. **Context isolation** — the big one. A sub-agent starts with a fresh context window, so the coordinator is not bloated by every detail of every subtask.
+2. **Parallelism** — independent subtasks run concurrently.
+3. **Specialization** — each agent gets a narrow role prompt and a small tool set.
+
+The costs are real: coordination overhead, errors that amplify as they propagate between agents, higher latency, multiplied token spend, and much harder debugging.
+
+Multi-agent systems are not smarter; they are better at isolating context and running in parallel. If a single agent with well-chosen tools can do the job, use the single agent.
+
+## Autonomy and escalation
+
+Autonomy is a spectrum, not a switch:
+
+| Level | Meaning |
+|---|---|
+| Suggest-only | The system proposes; a human performs every action |
+| Human-in-the-loop | The agent proposes actions; each one needs approval first |
+| Human-on-the-loop | The agent acts on its own; a human monitors and can stop it |
+| Full autonomy | No human in the process |
+
+My rule of thumb: **how strictly an action is gated should scale with its irreversibility times its blast radius.** Reads and queries can run fully automatically. Writing a local file is fine to review after the fact. Sending email, moving money, deleting data, publishing anything outward — a human approves first, every time.
+
+Escalation is the safety valve that makes autonomy tolerable. The agent stops and hands control back when it is uncertain, blocked, missing permissions, or facing a high-risk irreversible action. Mechanisms include confidence thresholds, an explicit ask-a-human tool, and review queues; in multi-agent setups, a stuck worker escalates to its orchestrator. The framing I hold onto: **escalation is not failure — it is the responsible default.** Better to ask one question too many than to act irreversibly while unsure.
+
+## Agent factories
+
+Once one agent works, you want twenty, and the factory pattern applies directly. An agent is fully described by its **configuration**: a role prompt, a tool set, a model choice, and a permission set. Define those as data — declaratively — and a factory spawns instances from templates on demand.
+
+The payoff is the same as everywhere the pattern shows up: consistency, versioned definitions, and cheap extension. Adding a new agent means adding configuration, not writing code.
+
+## The whole model in one paragraph
+
+A factory turns declarative configuration into agents. Each agent runs a ReAct orchestration loop; inside the loop it acts through tool calls that the harness executes, learns what it never knew through retrieval, and remembers through short- and long-term state. Whether you run one loop or several depends on whether you need context isolation and parallelism. How much the loop may do without asking is set by its autonomy level, and when it exceeds that level — or simply gets stuck — an escalation path hands control back to a human. Workflow integration then wires the whole thing into real systems: triggers start it, hooks instrument it, and approval checkpoints keep the irreversible steps honest.
