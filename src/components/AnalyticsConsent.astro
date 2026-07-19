@@ -1,0 +1,84 @@
+<aside
+  id="analytics-consent"
+  class="fixed inset-x-0 bottom-0 z-50 border-t border-[#dadce0] bg-white"
+  role="dialog"
+  aria-labelledby="analytics-consent-title"
+  aria-describedby="analytics-consent-description"
+  hidden
+>
+  <div class="page-shell grid gap-5 py-5 sm:grid-cols-[1fr_auto] sm:items-center">
+    <div class="max-w-3xl">
+      <p id="analytics-consent-title" class="text-sm font-medium text-[#202124]">Visitor analytics</p>
+      <p id="analytics-consent-description" class="mt-2 text-sm leading-6 text-[#5f6368]">
+        With your permission, MapMyVisitors processes your IP address to estimate location and records
+        page, referrer, browser, and visit time. <a class="text-link" href="/privacy/">Privacy details</a>
+      </p>
+    </div>
+    <div class="flex flex-wrap gap-3">
+      <button class="button button-secondary" type="button" data-analytics-decline>Decline</button>
+      <button class="button button-primary" type="button" data-analytics-allow>Allow analytics</button>
+    </div>
+  </div>
+</aside>
+
+<script is:inline>
+  (() => {
+    const CONSENT_KEY = "xw-analytics-consent";
+    const PRODUCTION_HOST = "xinyangwuethz.github.io";
+    const TRACKER_URL =
+      "https://mapmyvisitors.com/map.js?d=seLVPvm-rVVXfM6BNCE8wr_ouXXbsJmlEIulz5J1QIw&cl=ffffff&w=a";
+    const panel = document.getElementById("analytics-consent");
+    const allowButton = panel?.querySelector("[data-analytics-allow]");
+    const declineButton = panel?.querySelector("[data-analytics-decline]");
+
+    const loadTracker = () => {
+      if (location.hostname !== PRODUCTION_HOST || document.getElementById("mapmyvisitors")) return;
+
+      const host = document.createElement("div");
+      host.id = "mapmyvisitors-host";
+      host.hidden = true;
+      host.setAttribute("aria-hidden", "true");
+
+      const script = document.createElement("script");
+      script.id = "mapmyvisitors";
+      script.src = TRACKER_URL;
+      script.async = true;
+      host.appendChild(script);
+      document.body.appendChild(host);
+    };
+
+    const openPreferences = () => {
+      if (!panel) return;
+      panel.hidden = false;
+      allowButton?.focus();
+    };
+
+    const closePreferences = () => {
+      if (panel) panel.hidden = true;
+    };
+
+    document.querySelectorAll("[data-analytics-preferences]").forEach((control) => {
+      control.addEventListener("click", openPreferences);
+    });
+
+    allowButton?.addEventListener("click", () => {
+      localStorage.setItem(CONSENT_KEY, "allowed");
+      closePreferences();
+      loadTracker();
+    });
+
+    declineButton?.addEventListener("click", () => {
+      const trackerWasLoaded = Boolean(document.getElementById("mapmyvisitors"));
+      localStorage.setItem(CONSENT_KEY, "declined");
+      closePreferences();
+      if (trackerWasLoaded) location.reload();
+    });
+
+    const consent = localStorage.getItem(CONSENT_KEY);
+    if (consent === "allowed") {
+      loadTracker();
+    } else if (consent === null) {
+      openPreferences();
+    }
+  })();
+</script>

@@ -1,6 +1,7 @@
 ---
 import Footer from "@components/Footer.astro";
 import Header from "@components/Header.astro";
+import AnalyticsConsent from "@components/AnalyticsConsent.astro";
 import { site } from "@data/site";
 import "../styles/global.css";
 
@@ -36,5 +37,6 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? "https://XinyangWuEt
     <Header />
     <slot />
     <Footer />
+    <AnalyticsConsent />
   </body>
 </html>
