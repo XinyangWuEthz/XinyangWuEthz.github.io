@@ -43,6 +43,33 @@ export const projects: Project[] = [
     caseStudyUrl: "/notes/go-kubernetes-service/"
   },
   {
+    title: "Review Router",
+    subtitle:
+      "Content-policy router that allocates a fixed human-review budget across abuse categories, treated as an operating-point and queueing problem.",
+    bullets: [
+      "Ran exact operating-point analysis over 63,978 scored Jigsaw test rows, surfacing precision ceilings of 84% (toxic) vs. 14% (threat) at 50% recall / 1% FPR.",
+      "Routed rare high-harm labels to human review by policy under a fixed reviewer budget.",
+      "Cut p50 time-to-action by 65% against an equal-capacity FIFO baseline while tracking p90/p99.",
+      "Quantified a 1.74x severe-toxic volume overshoot from train-test prevalence shift that ROC-AUC missed.",
+      "Enforced per-label precision, clearance, and determinism floors in CI."
+    ],
+    tags: ["Python", "ML Evaluation", "Operating Points", "Queue Simulation", "CI Gates"],
+    repoUrl: "https://github.com/XinyangWuEthz/review-router"
+  },
+  {
+    title: "Abuse Signals",
+    subtitle:
+      "Account-level abuse-detection prototype combining SQL behavioral signals, deterministic rules, and supervised classifiers.",
+    bullets: [
+      "Engineered SQL behavioral signals over 20K synthetic accounts.",
+      "Combined deterministic rules with supervised classifiers for throttle/suspend decisions.",
+      "Reached PR-AUC 1.00 with throttle/suspend precision of 1.00/1.00 and recall of 0.96/0.66 on held-out synthetic data.",
+      "Enforced behavior with a 12-test CI gate."
+    ],
+    tags: ["Python", "SQL", "scikit-learn", "Deterministic Rules", "CI Gates"],
+    repoUrl: "https://github.com/XinyangWuEthz/abuse-signals"
+  },
+  {
     title: "High-Throughput Time-Series Data Platform",
     subtitle:
       "FastAPI backend for biosensor time-series ingestion, indexing, and concurrent internal serving.",

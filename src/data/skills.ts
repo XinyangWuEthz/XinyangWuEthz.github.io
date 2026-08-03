@@ -6,7 +6,7 @@ export type SkillGroup = {
 export const skills: SkillGroup[] = [
   {
     title: "AI Infrastructure",
-    body: "LLM services, RAG-style grounding, question routing, retrieval policy, source coverage, evaluation harnesses, model validation gates."
+    body: "LLM services, RAG-style grounding, question routing, retrieval policy, source coverage, evaluation harnesses, golden sets, human-review workflows, model validation gates."
   },
   {
     title: "Backend Systems",
