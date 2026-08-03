@@ -6,9 +6,10 @@ type Props = {
   summary: string;
   date: Date;
   tags: string[];
+  devto?: string;
 };
 
-const { title, summary, date, tags } = Astro.props;
+const { title, summary, date, tags, devto } = Astro.props;
 ---
 
 <BaseLayout title={`${title} | Xinyang Wu`} description={summary}>
@@ -25,6 +26,14 @@ const { title, summary, date, tags } = Astro.props;
           <div class="flex flex-wrap gap-2">
             {tags.map((tag) => <span class="tag">{tag}</span>)}
           </div>
+          {devto && (
+            <>
+              <span aria-hidden="true">/</span>
+              <a class="text-link" href={devto} target="_blank" rel="noreferrer">
+                Also on DEV <span aria-hidden="true">&rarr;</span>
+              </a>
+            </>
+          )}
         </div>
       </div>
       <div class="note-content mt-12">
