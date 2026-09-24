@@ -4,6 +4,7 @@ export type Project = {
   subtitle: string;
   bullets: string[];
   tags: string[];
+  projectUrl?: string;
   repoUrl?: string;
   caseStudyUrl?: string;
   architectureUrl?: string;
@@ -44,16 +45,17 @@ export const projects: Project[] = [
   },
   {
     title: "Review Router",
+    status: "Released v0.1.0",
     subtitle:
-      "Content-policy router that allocates a fixed human-review budget across abuse categories, treated as an operating-point and queueing problem.",
+      "A reproducible benchmark for human-review routing: compare admission policies and queue ordering under fixed reviewer capacity.",
     bullets: [
-      "Ran exact operating-point analysis over 63,978 scored Jigsaw test rows, surfacing precision ceilings of 84% (toxic) vs. 14% (threat) at 50% recall / 1% FPR.",
-      "Routed rare high-harm labels to human review by policy under a fixed reviewer budget.",
-      "Cut p50 time-to-action by 65% against an equal-capacity FIFO baseline while tracking p90/p99.",
-      "Quantified a 1.74x severe-toxic volume overshoot from train-test prevalence shift that ROC-AUC missed.",
-      "Enforced per-label precision, clearance, and determinism floors in CI."
+      "Compared admission policies and four queue orderings using one frozen, calibrated classifier on Jigsaw comments.",
+      "At 180 admitted jobs/hour, severity ordering completed 53.75 more high-risk reviews and 53.75 fewer other reviews per 8-hour shift than FIFO, averaged over 20 paired simulation seeds.",
+      "Total throughput stayed unchanged. Labels are proxies for review value; moderation actions still require human confirmation.",
+      "Published experiment records, CI checks, and versioned model and evaluation artifacts."
     ],
-    tags: ["Python", "ML Evaluation", "Operating Points", "Queue Simulation", "CI Gates"],
+    tags: ["Python", "scikit-learn", "ML Evaluation", "Human Review", "Queue Simulation"],
+    projectUrl: "https://xinyangwuethz.github.io/review-router/",
     repoUrl: "https://github.com/XinyangWuEthz/review-router"
   },
   {
