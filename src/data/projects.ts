@@ -56,6 +56,7 @@ export const projects: Project[] = [
     ],
     tags: ["Python", "scikit-learn", "ML Evaluation", "Human Review", "Queue Simulation"],
     projectUrl: "https://xinyangwuethz.github.io/review-router/",
+    caseStudyUrl: "/notes/same-model-different-review-queue/",
     repoUrl: "https://github.com/XinyangWuEthz/review-router"
   },
   {
