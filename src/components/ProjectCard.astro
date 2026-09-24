@@ -9,6 +9,7 @@ type Props = {
 const { project, index } = Astro.props;
 const isPrimary = index === 0;
 const evidenceLinks = [
+  { label: "Project website", url: project.projectUrl },
   { label: "GitHub", url: project.repoUrl },
   { label: "Case Study", url: project.caseStudyUrl },
   { label: "Architecture", url: project.architectureUrl },
