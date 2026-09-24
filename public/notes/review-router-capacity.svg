@@ -1,0 +1,160 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:ns2="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" width="720pt" height="388.8pt" viewBox="0 0 720 388.8" version="1.1" role="img" aria-labelledby="capacity-title capacity-description">
+ <title id="capacity-title">Queue ordering changes which reviews finish, without increasing capacity</title><desc id="capacity-description">Two stacked horizontal bars show mean completed reviews across 20 paired simulation seeds at 180 admitted jobs per hour, with four reviewers, two minutes per job, and an eight-hour shift. FIFO completes 135.60 high-risk and 819.65 other reviews. Default severity completes 189.35 high-risk and 765.90 other reviews. Both complete 955.25 in total. Severity therefore completes 53.75 more high-risk reviews and 53.75 fewer other reviews.</desc><metadata>
+  <rdf:RDF>
+   <ns2:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <ns2:Agent>
+      <dc:title>Matplotlib v3.11.2, https://matplotlib.org/</dc:title>
+     </ns2:Agent>
+    </dc:creator>
+   </ns2:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 388.8  L 720 388.8  L 720 0  L 0 0  z " style="fill: #ffffff" />
+  </g>
+  <g id="axes_1">
+   <g id="patch_2">
+    <path d="M 136.8 258.552  L 687.6 258.552  L 687.6 116.64  L 136.8 116.64  z " style="fill: #ffffff" />
+   </g>
+   <g id="matplotlib.axis_1">
+    <g id="xtick_1">
+     <g id="line2d_1">
+      <path d="M 136.8 258.552  L 136.8 116.64  " clip-path="url(#pc5dce88c30)" style="fill: none; stroke: #f1f3f4; stroke-linecap: square" />
+     </g>
+     <g id="line2d_2" />
+     <g id="text_1">
+      <text style="font-size: 13px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #5f6368" x="136.8" y="276.428953" transform="rotate(-0 136.8 276.428953)">0</text>
+     </g>
+    </g>
+    <g id="xtick_2">
+     <g id="line2d_3">
+      <path d="M 274.5 258.552  L 274.5 116.64  " clip-path="url(#pc5dce88c30)" style="fill: none; stroke: #f1f3f4; stroke-linecap: square" />
+     </g>
+     <g id="line2d_4" />
+     <g id="text_2">
+      <text style="font-size: 13px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #5f6368" x="274.5" y="276.428953" transform="rotate(-0 274.5 276.428953)">250</text>
+     </g>
+    </g>
+    <g id="xtick_3">
+     <g id="line2d_5">
+      <path d="M 412.2 258.552  L 412.2 116.64  " clip-path="url(#pc5dce88c30)" style="fill: none; stroke: #f1f3f4; stroke-linecap: square" />
+     </g>
+     <g id="line2d_6" />
+     <g id="text_3">
+      <text style="font-size: 13px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #5f6368" x="412.2" y="276.428953" transform="rotate(-0 412.2 276.428953)">500</text>
+     </g>
+    </g>
+    <g id="xtick_4">
+     <g id="line2d_7">
+      <path d="M 549.9 258.552  L 549.9 116.64  " clip-path="url(#pc5dce88c30)" style="fill: none; stroke: #f1f3f4; stroke-linecap: square" />
+     </g>
+     <g id="line2d_8" />
+     <g id="text_4">
+      <text style="font-size: 13px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #5f6368" x="549.9" y="276.428953" transform="rotate(-0 549.9 276.428953)">750</text>
+     </g>
+    </g>
+    <g id="xtick_5">
+     <g id="line2d_9">
+      <path d="M 687.6 258.552  L 687.6 116.64  " clip-path="url(#pc5dce88c30)" style="fill: none; stroke: #f1f3f4; stroke-linecap: square" />
+     </g>
+     <g id="line2d_10" />
+     <g id="text_5">
+      <text style="font-size: 13px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #5f6368" x="687.6" y="276.428953" transform="rotate(-0 687.6 276.428953)">1,000</text>
+     </g>
+    </g>
+    <g id="text_6">
+     <text style="font-size: 12px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #5f6368" x="412.2" y="301.670125" transform="rotate(-0 412.2 301.670125)">Completed reviews per shift, mean of 20 paired seeds</text>
+    </g>
+   </g>
+   <g id="matplotlib.axis_2">
+    <g id="ytick_1">
+     <g id="line2d_11" />
+     <g id="text_7">
+      <text style="font-size: 13px; font-family: 'DejaVu Sans'; text-anchor: end; fill: #202124" x="128.8" y="159.684477" transform="rotate(-0 128.8 159.684477)">FIFO</text>
+     </g>
+    </g>
+    <g id="ytick_2">
+     <g id="line2d_12" />
+     <g id="text_8">
+      <text style="font-size: 13px; font-family: 'DejaVu Sans'; text-anchor: end; fill: #202124" x="128.8" y="225.384984" transform="rotate(-0 128.8 225.384984)">Default severity</text>
+     </g>
+    </g>
+   </g>
+   <g id="patch_3">
+    <path d="M 136.8 170.1855  L 211.48848 170.1855  L 211.48848 139.3065  L 136.8 139.3065  z " clip-path="url(#pc5dce88c30)" style="fill: #1a73e8" />
+   </g>
+   <g id="patch_4">
+    <path d="M 136.8 235.8855  L 241.09398 235.8855  L 241.09398 205.0065  L 136.8 205.0065  z " clip-path="url(#pc5dce88c30)" style="fill: #1a73e8" />
+   </g>
+   <g id="patch_5">
+    <path d="M 211.48848 170.1855  L 662.9517 170.1855  L 662.9517 139.3065  L 211.48848 139.3065  z " clip-path="url(#pc5dce88c30)" style="fill: #e8eaed" />
+   </g>
+   <g id="patch_6">
+    <path d="M 241.09398 235.8855  L 662.9517 235.8855  L 662.9517 205.0065  L 241.09398 205.0065  z " clip-path="url(#pc5dce88c30)" style="fill: #e8eaed" />
+   </g>
+   <g id="text_9">
+    <text style="font-weight: 700; font-size: 12.5px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #ffffff" x="174.14424" y="157.99307" transform="rotate(-0 174.14424 157.99307)">135.60</text>
+   </g>
+   <g id="text_10">
+    <text style="font-size: 14px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #3c4043" x="437.22009" y="158.382719" transform="rotate(-0 437.22009 158.382719)">819.65</text>
+   </g>
+   <g id="text_11">
+    <text style="font-weight: 700; font-size: 12.5px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #ffffff" x="188.94699" y="223.69307" transform="rotate(-0 188.94699 223.69307)">189.35</text>
+   </g>
+   <g id="text_12">
+    <text style="font-size: 14px; font-family: 'DejaVu Sans'; text-anchor: middle; fill: #3c4043" x="452.02284" y="224.082719" transform="rotate(-0 452.02284 224.082719)">765.90</text>
+   </g>
+  </g>
+  <g id="text_13">
+   <text style="font-weight: 700; font-size: 21px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #202124" x="25.2" y="25.272" transform="rotate(-0 25.2 25.272)">Same capacity, different reviews completed</text>
+  </g>
+  <g id="text_14">
+   <text style="font-size: 13px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #5f6368" x="25.2" y="48.2112" transform="rotate(-0 25.2 48.2112)">180 admitted jobs/hour · 4 reviewers · 2 minutes/job · 8-hour shift</text>
+  </g>
+  <g id="text_15">
+   <text style="font-weight: 700; font-size: 23px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #1a73e8" x="136.8" y="332.0352" transform="rotate(-0 136.8 332.0352)">+53.75</text>
+  </g>
+  <g id="text_16">
+   <text style="font-size: 12px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #5f6368" x="136.8" y="351.4752" transform="rotate(-0 136.8 351.4752)">high-risk reviews</text>
+  </g>
+  <g id="text_17">
+   <text style="font-weight: 700; font-size: 23px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #3c4043" x="338.4" y="332.0352" transform="rotate(-0 338.4 332.0352)">−53.75</text>
+  </g>
+  <g id="text_18">
+   <text style="font-size: 12px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #5f6368" x="338.4" y="351.4752" transform="rotate(-0 338.4 351.4752)">other reviews</text>
+  </g>
+  <g id="text_19">
+   <text style="font-weight: 700; font-size: 23px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #3c4043" x="518.4" y="332.0352" transform="rotate(-0 518.4 332.0352)">955.25</text>
+  </g>
+  <g id="text_20">
+   <text style="font-size: 12px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #5f6368" x="518.4" y="351.4752" transform="rotate(-0 518.4 351.4752)">total, unchanged</text>
+  </g>
+  <g id="legend_1">
+   <g id="patch_7">
+    <path d="M 136.98 91.561969  L 151.93 91.561969  L 151.93 82.461969  L 136.98 82.461969  z " style="fill: #1a73e8" />
+   </g>
+   <g id="text_21">
+    <text style="font-size: 13px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #202124" x="162.33" y="91.561969" transform="rotate(-0 162.33 91.561969)">High-risk reviews</text>
+   </g>
+   <g id="patch_8">
+    <path d="M 300.052812 91.561969  L 315.002812 91.561969  L 315.002812 82.461969  L 300.052812 82.461969  z " style="fill: #e8eaed" />
+   </g>
+   <g id="text_22">
+    <text style="font-size: 13px; font-family: 'DejaVu Sans'; text-anchor: start; fill: #202124" x="325.402812" y="91.561969" transform="rotate(-0 325.402812 91.561969)">Other reviews</text>
+   </g>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="pc5dce88c30">
+   <rect x="136.8" y="116.64" width="550.8" height="141.912" />
+  </clipPath>
+ </defs>
+</svg>

@@ -1,0 +1,140 @@
+---
+title: "Same model, different review queue: which risks get reviewed first?"
+date: 2026-09-24
+summary: "A fixed-model experiment in human-review routing: 53.75 more high-risk reviews per shift, 53.75 fewer other reviews, and no extra capacity."
+tags: ["ML Evaluation", "Human Review", "Queueing", "Reproducibility"]
+---
+
+Four reviewers. Two minutes per review. An eight-hour shift. What changes if the model stays the same, but the queue serves comments in a different order?
+
+In an overloaded simulation at 180 admitted review jobs per hour, my default severity ordering completed **53.75 more high-risk reviews per shift than FIFO**. It also completed **53.75 fewer other reviews**. The total number completed was unchanged.
+
+Those are averages over 20 paired simulation seeds. They describe a reallocation of attention within a fixed budget. They do not mean that reviewers became faster or that the classifier became more accurate.
+
+I built [review-router](https://xinyangwuethz.github.io/review-router/) to examine that decision after a model has produced its scores: which comments enter human review, and which get served first? Every moderation action still requires human confirmation. This article focuses on queue order, with admission held fixed.
+
+## Why classifier AUC cannot answer the whole question
+
+[ROC-AUC](https://scikit-learn.org/stable/modules/model_evaluation.html#roc-metrics) summarizes how prediction scores separate positive and negative examples across thresholds. It is useful for comparing classifiers. It does not specify how many reviewers are available, how long a review takes, or which queued comment should be handled next.
+
+That gap is easy to expose. Keep all label probabilities unchanged and reorder the review queue. The classifier's per-label AUCs remain identical, but the set of jobs completed before the shift ends can change.
+
+A model metric therefore leaves several operational questions open. Did high-risk comments reach review? How long did they wait? How many were still waiting at the end? What happened to the rest of the queue?
+
+For someone operating a moderation or fraud-review workflow, those questions connect model evaluation to a finite amount of human time. My experiment isolates the scheduling part of that problem.
+
+## Keep the model, admissions and human capacity fixed
+
+The scorer is a frozen word TF-IDF model with six logistic classifiers and Platt probability calibration, trained on Jigsaw 2018. Its vocabulary, classifier parameters and calibration parameters stay fixed. For this comparison, I reused saved predictions and admission decisions from the accepted evaluation, so there was no retraining or threshold reselection between queue strategies.
+
+The saved evaluation contains 63,978 scored test comments, of which 6,312 enter the shared human-review queue. Both the ordinary and priority bands consume reviewer time.
+
+The simulation then holds the following conditions constant:
+
+- Four reviewers, each taking exactly two minutes per job.
+- An eight-hour shift, starting with an empty queue.
+- Poisson arrivals, with jobs sampled with replacement from the same admitted pool.
+- The same sampled jobs and arrival times for every strategy within each seed.
+- Twenty paired seeds for each load, including 180 admitted jobs per hour.
+
+The arrival rate is measured **after admission**. It is not 180 raw comments entering the entire moderation system. This experiment asks how to order the work already selected for review.
+
+Four reviewers at two minutes per job provide a nominal capacity of 120 reviews per hour. At 180 arrivals per hour, the queue is overloaded. Sorting cannot remove that capacity gap.
+
+For evaluation, I call a job high-risk when its original Jigsaw labels include severe toxicity, threat or identity hate. "Other" covers all remaining admitted jobs, including false positives. This is a declared label-based proxy for review value, not an independent human judgment of urgency. The [frozen protocol](https://github.com/XinyangWuEthz/review-router/blob/v0.1.0/docs/experiment.md) records these assumptions.
+
+## Four ways to serve the same queue
+
+| Ordering | What gets served next? |
+|---|---|
+| FIFO | The earliest waiting arrival. |
+| Probability | The waiting job with the highest maximum label probability. |
+| Band-first | A priority-band job before an ordinary-band job, then higher severity within a band. |
+| Severity, the default | The waiting job with the highest probability multiplied by its label's severity weight. |
+
+The default score is small enough to show directly:
+
+```text
+severity_score = max(probability[label] × weight[label])
+```
+
+The weights are 10 for threat, 6 for identity hate, 5 for severe toxicity, 2 each for insult and obscenity, and 1 for toxicity. They express a policy preference. The maximum weighted score is a ranking rule, not a measured quantity of real-world harm.
+
+This also separates confidence from urgency. Being highly confident that a comment contains an insult does not automatically make it more urgent than a less certain threat. Probability ordering and severity ordering make different choices about that tradeoff.
+
+Under the default, the review-band label does not override severity. Both bands feed the same queue, and the highest score goes first. The band-first strategy is a separate comparison.
+
+## More high-risk work completed, with the same throughput
+
+The table below uses the **20-seed experiment**, not the earlier five-seed baseline in the project's development record. Each entry is a mean number of completed reviews per eight-hour shift at 180 admitted jobs per hour.
+
+| Ordering | High-risk completed | Other completed | Total completed |
+|---|---:|---:|---:|
+| FIFO | 135.60 | 819.65 | 955.25 |
+| Probability | 181.00 | 774.25 | 955.25 |
+| Band-first | 189.20 | 766.05 | 955.25 |
+| Severity | 189.35 | 765.90 | 955.25 |
+
+The total falls slightly below the nominal 960 reviews per shift because the simulation starts empty, reviewers can have idle gaps, and only reviews finished before the horizon count. With identical arrivals and constant service times, changing queue order changes which jobs receive those service slots.
+
+![Two equal-length stacked bars compare completed reviews under FIFO and severity ordering. FIFO completes 135.60 high-risk and 819.65 other reviews; severity completes 189.35 high-risk and 765.90 other reviews. Both total 955.25.](/notes/review-router-capacity.svg)
+
+[Download the figure as PNG](/notes/review-router-capacity.png).
+
+The difference from FIFO is substantial under these assumptions. The difference from band-first is small: **0.15 additional high-risk completions per shift**. This experiment gives little reason to claim a meaningful completion advantage over band-first.
+
+I could describe the FIFO comparison as roughly 40% more high-risk reviews. But that percentage alone hides the displaced work. Reporting +53.75 high-risk and −53.75 other completions makes the capacity tradeoff explicit. The [saved sensitivity report](https://github.com/XinyangWuEthz/review-router/blob/v0.1.0/record/severity-sensitivity.md) contains the full comparison and per-seed differences.
+
+## Shorter waits can hide jobs that never started
+
+The high-risk wait p90 fell from 139.54 minutes under FIFO to 1.76 minutes under severity ordering. These values are means of the per-seed p90s, calculated only over jobs that started review. They include reviews still in progress at the end of the shift.
+
+That last condition matters. A job that never starts has no observed start-time wait. It must not disappear from the evaluation just because it cannot contribute to that percentile.
+
+| Measure at the end of the shift | FIFO | Severity |
+|---|---:|---:|
+| High-risk jobs never started | 70.05 | 16.05 |
+| Other jobs never started | 393.60 | 447.60 |
+| Other jobs' wait p90, among those started, minutes | 139.42 | 13.40 |
+
+Even the conditional wait statistic for other jobs looks better. Yet fewer of those jobs finished, and more never started. The populations behind the wait summaries are different: later, higher-scoring jobs can be served while earlier, lower-scoring jobs remain queued.
+
+This is why I report completion counts and never-started counts alongside wait percentiles. A dashboard that showed only waiting times could make the queue look improved for everyone while concealing who had lost access to review. The [per-seed records](https://github.com/XinyangWuEthz/review-router/blob/v0.1.0/record/severity-sensitivity.json) also retain unfinished-job ages.
+
+The load changes the story. At 108 admitted jobs per hour, below nominal capacity, mean high-risk completions were 122.25 with severity ordering and 122.00 with FIFO. The corresponding mean per-seed wait p90s were 1.11 and 5.16 minutes. At that load, the main observed difference was timing rather than a large change in completed work.
+
+## The weights are an assumption to examine
+
+The 20-seed comparison came from a bounded sensitivity experiment with five weight vectors. I declared those vectors before this sweep, after earlier work had already inspected the benchmark. Besides the default, I tested flat weights, compressed and expanded weight differences, and a lower threat weight. Flat weights reduce the score to probability ordering.
+
+The three non-flat alternatives changed high-risk completions by −2.15 to +2.45 per shift relative to the default at 180 jobs per hour. I retained the declared default rather than choosing whichever vector won this sweep.
+
+That is a limited stress test. It does not establish optimal weights, and it does not tell an operator how much an insult, threat or missed review should be worth. Those priorities need a defensible policy and evidence from the intended workflow.
+
+## Reproduce the comparison and read its limits
+
+The [v0.1.0 release](https://github.com/XinyangWuEthz/review-router/releases/tag/v0.1.0) includes a frozen model archive, the accepted evaluation archive and SHA-256 checksums. The evaluation archive contains the saved predictions and configuration needed to replay the queue experiment. It does not require downloading the raw comment corpus or retraining a model.
+
+From a v0.1.0 checkout, in a Python 3.12 environment:
+
+```bash
+python -m pip install -c configs/frozen-ml.txt -e ".[ml]"
+gh release download v0.1.0 --repo XinyangWuEthz/review-router \
+  --pattern baseline-evaluation-v0.1.0.zip --dir reports
+unzip reports/baseline-evaluation-v0.1.0.zip -d reports/frozen-evaluation
+python scripts/weight_sensitivity.py reports/frozen-evaluation
+```
+
+The command writes the sensitivity report and its per-seed JSON results. The [reproduction guide](https://github.com/XinyangWuEthz/review-router/blob/v0.1.0/docs/experiment.md#reproduce-the-bounded-weight-check) provides the full protocol; the separate [experiment pages](https://xinyangwuethz.github.io/review-router/) preserve the development record.
+
+Several limits determine how far I would carry the result:
+
+- **The benchmark has already been inspected.** It was not an untouched final test of a newly selected policy. New held-out data is needed for independent confirmation.
+- **Jigsaw labels approximate review value.** Ambiguous or context-dependent comments may deserve review even when their labels are negative. An independent human assessment remains deferred.
+- **The seeds vary simulated arrivals.** They do not quantify uncertainty about label quality, the corpus or a different deployment population.
+- **Handling time is constant.** Real cases may take very different amounts of time, which can change both throughput and scheduling tradeoffs.
+- **Completion is simulated review completion.** No real moderation decisions, prevented harms or production outcomes were measured.
+
+For a workflow owner, the result raises a concrete policy question: how much delay or unfinished work is acceptable for the rest of the queue when high-risk work gets priority? A useful next experiment would test a waiting-time limit or reserved capacity for that work, alongside high-risk completions. Neither mechanism is part of this release.
+
+The queue can make an existing model more useful under a stated priority policy. The evidence needs to include the work that policy leaves waiting.
