@@ -13,6 +13,8 @@ Those are averages over 20 paired simulation seeds. They describe a reallocation
 
 I built [review-router](https://xinyangwuethz.github.io/review-router/) to examine that decision after a model has produced its scores: which comments enter human review, and which get served first? Every moderation action still requires human confirmation. This article focuses on queue order, with admission held fixed.
 
+[GitHub repository](https://github.com/XinyangWuEthz/review-router) · [Experiment record](https://xinyangwuethz.github.io/review-router/record/index.html) · [v0.1.0 release](https://github.com/XinyangWuEthz/review-router/releases/tag/v0.1.0)
+
 ## Why classifier AUC cannot answer the whole question
 
 [ROC-AUC](https://scikit-learn.org/stable/modules/model_evaluation.html#roc-metrics) summarizes how prediction scores separate positive and negative examples across thresholds. It is useful for comparing classifiers. It does not specify how many reviewers are available, how long a review takes, or which queued comment should be handled next.
