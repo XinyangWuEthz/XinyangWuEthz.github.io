@@ -61,14 +61,14 @@ export const projects: Project[] = [
   {
     title: "Abuse Signals",
     subtitle:
-      "Account-level abuse-detection prototype combining SQL behavioral signals, deterministic rules, and supervised classifiers.",
+      "Account-level abuse-detection prototype with SQL behavioral signals and reproducible evaluation of deterministic rules and supervised classifiers.",
     bullets: [
-      "Engineered SQL behavioral signals over 20K synthetic accounts.",
-      "Combined deterministic rules with supervised classifiers for throttle/suspend decisions.",
-      "Reached PR-AUC 1.00 with throttle/suspend precision of 1.00/1.00 and recall of 0.96/0.66 on held-out synthetic data.",
-      "Enforced behavior with a 12-test CI gate."
+      "Engineered 13 SQL behavioral signals over 20K synthetic accounts per experiment.",
+      "Compared rules, logistic regression, and gradient boosting using grouped train/validation/test splits and validation-calibrated action thresholds.",
+      "Achieved mean average precision of 0.988 with gradient boosting on held-out synthetic challenge data across three seeds, with 99.6% precision and 90.5% recall for suspend recommendations.",
+      "Automated 63 tests, detection-quality regression gates, and a six-run benchmark with saved evaluation reports in GitHub Actions."
     ],
-    tags: ["Python", "SQL", "scikit-learn", "Deterministic Rules", "CI Gates"],
+    tags: ["Python", "SQL", "scikit-learn", "FastAPI", "GitHub Actions"],
     repoUrl: "https://github.com/XinyangWuEthz/abuse-signals"
   },
   {
