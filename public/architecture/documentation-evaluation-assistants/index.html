@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Architecture of a documentation and evaluation assistant built with FastAPI, policy-filtered retrieval, read-only evaluation tools, and NDJSON streaming.">
+  <meta name="theme-color" content="#ffffff">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="Documentation & evaluation assistants | Xinyang Wu">
+  <meta property="og:description" content="How product documentation, scientific evidence, and stored evaluation results reach a shared assistant interface.">
+  <title>Documentation &amp; evaluation assistants | Xinyang Wu</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #202124;
+      --muted: #5f6368;
+      --line: #dadce0;
+      --paper: #ffffff;
+      --soft: #f7f9fc;
+      --blue: #185abc;
+      --blue-light: #eaf1fd;
+      --teal: #116b5b;
+      --teal-light: #eaf5f1;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 84px; }
+    body { margin: 0; background: var(--paper); color: var(--ink); font: 16px/1.65 Roboto, Arial, ui-sans-serif, system-ui, sans-serif; }
+    a { color: var(--blue); text-underline-offset: 4px; }
+    a:hover { text-decoration-thickness: 2px; }
+    button, summary, a { -webkit-tap-highlight-color: transparent; }
+    :focus-visible { outline: 3px solid var(--blue); outline-offset: 5px; }
+    button { font: inherit; }
+    .shell { width: min(1120px, 100%); padding-inline: 40px; margin-inline: auto; }
+    .site-header { border-bottom: 1px solid var(--line); background: white; }
+    .header-inner { min-height: 68px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+    .name { color: var(--ink); font-weight: 600; text-decoration: none; }
+    .back { color: var(--muted); font-size: 14px; }
+    .skip { position: absolute; left: 16px; top: -100px; background: white; padding: 10px 16px; z-index: 10; }
+    .skip:focus { top: 10px; }
+    .hero { padding-block: 68px 42px; }
+    .eyebrow { margin: 0 0 17px; color: var(--blue); font-size: 13px; letter-spacing: .11em; text-transform: uppercase; font-weight: 600; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { max-width: 840px; font-size: clamp(35px, 4.8vw, 56px); font-weight: 500; letter-spacing: -.045em; line-height: 1.1; margin-bottom: 24px; }
+    .lede { max-width: 780px; font-size: 20px; line-height: 1.6; color: var(--muted); margin-bottom: 24px; }
+    .tags { display: flex; gap: 8px; flex-wrap: wrap; list-style: none; margin: 0; padding: 0; }
+    .tags li { font-size: 12px; padding: 4px 10px; border-radius: 4px; background: #f1f3f4; color: #3c4043; }
+    .page-nav { display: flex; gap: 26px; border-bottom: 1px solid var(--line); padding-block: 20px 15px; flex-wrap: wrap; }
+    .page-nav a { color: var(--muted); text-decoration: none; font-size: 14px; }
+    .page-nav a:hover { color: var(--blue); }
+    section { padding-block: 48px; border-bottom: 1px solid var(--line); }
+    .section-heading { display: grid; grid-template-columns: 240px 1fr; gap: 42px; margin-bottom: 30px; }
+    h2 { font-size: 27px; line-height: 1.25; letter-spacing: -.025em; font-weight: 500; margin-bottom: 12px; }
+    h3 { font-size: 17px; line-height: 1.4; font-weight: 600; margin-bottom: 10px; }
+    .section-heading p { color: var(--muted); margin-bottom: 0; max-width: 690px; }
+    .three-columns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 26px; }
+    .use-case { padding-top: 18px; border-top: 2px solid var(--ink); }
+    .use-case p { color: var(--muted); font-size: 15px; margin-bottom: 12px; }
+    .use-case .example { color: var(--ink); font-size: 14px; margin-top: 18px; margin-bottom: 0; }
+    .small-label { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); display: block; margin-bottom: 6px; }
+    .diagram { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+    .diagram-head { padding: 22px 26px; background: var(--soft); border-bottom: 1px solid var(--line); }
+    .diagram-head p { color: var(--muted); font-size: 14px; margin-bottom: 14px; }
+    .switcher { display: flex; flex-wrap: wrap; gap: 8px; }
+    .switcher button { padding: 9px 15px; border: 1px solid #c6cbd2; color: var(--muted); background: white; border-radius: 6px; cursor: pointer; font-size: 14px; min-height: 44px; }
+    .switcher button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: white; }
+    .switcher button:hover { border-color: var(--ink); }
+    .flow { padding: 28px 26px; }
+    .request { display: grid; grid-template-columns: 1fr auto; gap: 22px; align-items: center; padding-bottom: 24px; }
+    .request h3 { margin-bottom: 7px; }
+    .request p { margin-bottom: 0; color: var(--muted); font-size: 14px; max-width: 620px; }
+    .endpoint { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; border: 1px solid var(--line); padding: 9px 12px; border-radius: 5px; background: white; overflow-wrap: anywhere; max-width: 340px; }
+    .backend { padding: 20px; background: var(--soft); border: 1px dashed #b7c2d2; border-radius: 8px; }
+    .boundary-label { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin-bottom: 19px; }
+    .pipeline { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 27px; }
+    .pipeline li { border: 1px solid var(--line); background: white; border-radius: 7px; padding: 18px; position: relative; min-width: 0; }
+    .pipeline li:not(:last-child)::after { content: "→"; position: absolute; right: -22px; top: 42px; color: #6e7b8d; font-size: 20px; }
+    .step-number { display: block; font-size: 11px; color: var(--blue); font-weight: 600; margin-bottom: 10px; letter-spacing: .08em; }
+    .pipeline h3 { font-size: 16px; margin-bottom: 8px; }
+    .pipeline p { font-size: 13px; color: var(--muted); margin-bottom: 0; }
+    .support-row { margin-top: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .support { border-left: 3px solid var(--teal); padding: 3px 0 3px 12px; }
+    .support strong { font-size: 13px; font-weight: 600; }
+    .support p { font-size: 12px; color: var(--muted); margin: 3px 0 0; }
+    .output-arrow { text-align: center; color: var(--muted); line-height: 1; font-size: 23px; padding-block: 12px; }
+    .output { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 20px; border: 1px solid #c8dcf8; background: var(--blue-light); border-radius: 7px; }
+    .output h3 { font-size: 15px; color: #174b99; margin-bottom: 6px; }
+    .output p { margin-bottom: 0; font-size: 13px; color: #355272; }
+    .output code { color: #174b99; background: transparent; }
+    .diagram-caption { padding: 17px 26px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); margin: 0; }
+    .two-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 36px; }
+    .two-columns p, .two-columns li { color: var(--muted); font-size: 15px; }
+    .two-columns ul { padding-left: 20px; margin-block: 0; }
+    .two-columns li { margin-bottom: 10px; }
+    .two-columns code, details code { color: var(--ink); font-size: .86em; overflow-wrap: anywhere; }
+    .callout { background: var(--teal-light); color: #22534b; padding: 20px 22px; border-left: 3px solid var(--teal); margin-top: 28px; font-size: 14px; }
+    .callout p { margin: 0; }
+    .table-wrap { overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; font-size: 14px; text-align: left; }
+    th { color: var(--muted); font-weight: 500; }
+    th, td { padding: 15px 18px 15px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+    tr:last-child td { border-bottom: 0; }
+    td:first-child { font-weight: 500; width: 26%; }
+    td { color: #41464e; }
+    .table-caption { text-align: left; font-size: 13px; color: var(--muted); caption-side: bottom; padding-top: 15px; }
+    details { border-top: 1px solid var(--line); padding-block: 17px; }
+    details:last-child { border-bottom: 1px solid var(--line); }
+    summary { font-size: 15px; font-weight: 500; cursor: pointer; }
+    details p { color: var(--muted); font-size: 14px; margin: 15px 0 0; max-width: 820px; }
+    .contract { margin-top: 25px; padding: 22px; border: 1px solid var(--line); border-radius: 8px; }
+    .contract p { color: var(--muted); font-size: 14px; margin-bottom: 13px; }
+    pre { white-space: pre-wrap; overflow-wrap: anywhere; padding: 16px 18px; margin: 0; border-radius: 5px; background: var(--soft); font-size: 12px; line-height: 1.8; }
+    .tradeoffs { margin-top: 30px; padding-top: 25px; border-top: 1px solid var(--line); }
+    .tradeoffs p { margin-bottom: 0; font-size: 14px; color: var(--muted); }
+    footer { padding-block: 28px 42px; color: var(--muted); font-size: 13px; display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+    footer p { margin: 0; }
+    [hidden] { display: none !important; }
+    @media (max-width: 850px) {
+      .shell { padding-inline: 25px; }
+      .section-heading { grid-template-columns: 1fr; gap: 5px; }
+      .request { grid-template-columns: 1fr; gap: 14px; }
+      .endpoint { max-width: none; }
+      .pipeline { gap: 22px; }
+      .pipeline li { padding: 14px; }
+      .pipeline li:not(:last-child)::after { right: -19px; }
+      .three-columns { gap: 20px; }
+    }
+    @media (max-width: 600px) {
+      .shell { padding-inline: 20px; }
+      .hero { padding-block: 42px 26px; }
+      .lede { font-size: 18px; }
+      section { padding-block: 34px; }
+      .three-columns, .two-columns, .support-row, .output { grid-template-columns: 1fr; gap: 22px; }
+      .pipeline { grid-template-columns: 1fr; gap: 26px; }
+      .pipeline li:not(:last-child)::after { content: "↓"; top: auto; bottom: -28px; right: 50%; transform: translateX(50%); }
+      .diagram-head, .flow { padding: 20px 16px; }
+      .backend { padding: 16px; }
+      .diagram-caption { padding: 16px; }
+      .switcher { flex-direction: column; }
+      .switcher button { text-align: left; }
+      .page-nav { gap: 20px; }
+      th, td { padding-right: 14px; }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+    @media print {
+      .skip, .back, .page-nav, .switcher { display: none; }
+      .shell { max-width: none; padding-inline: 0; }
+      .hero { padding-top: 20px; }
+      section { padding-block: 24px; }
+      .diagram, .use-case, .contract { break-inside: avoid; }
+      body { font-size: 11pt; }
+      a { color: inherit; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header">
+    <nav class="shell header-inner" aria-label="Primary navigation">
+      <a class="name" href="/">Xinyang Wu</a>
+      <a class="back" href="/#featured">Back to projects</a>
+    </nav>
+  </header>
+  <main id="main" class="shell">
+    <div class="hero">
+      <p class="eyebrow">Project architecture · Applied AI</p>
+      <h1>Documentation &amp;<br>evaluation assistants</h1>
+      <p class="lede">Connecting product documentation, scientific evidence, and evaluation results to an assistant that can explain where its answers come from.</p>
+      <ul class="tags" aria-label="Technologies">
+        <li>Python</li><li>FastAPI</li><li>React / TypeScript</li><li>RAG</li><li>NDJSON</li><li>Read-only tools</li><li>Regression evaluation</li>
+      </ul>
+    </div>
+    <nav class="page-nav" aria-label="On this page">
+      <a href="#context">Context</a><a href="#architecture">Architecture</a><a href="#evidence">Evidence policy</a><a href="#validation">Validation</a>
+    </nav>
+
+    <section id="context" aria-labelledby="context-title">
+      <div class="section-heading">
+        <h2 id="context-title">Three places to ask</h2>
+        <p>A biosensor analysis application needs different evidence for product instructions, scientific explanations, and questions about a particular result. The assistants share retrieval and presentation while keeping those contexts distinct.</p>
+      </div>
+      <div class="three-columns">
+        <article class="use-case">
+          <h3>Product documentation</h3>
+          <p>Answers questions using generated documentation and curated scientific references, with linked sources and a visible evidence-coverage label.</p>
+          <p class="example"><span class="small-label">Example question</span>How do I configure a single-cycle experiment?</p>
+        </article>
+        <article class="use-case">
+          <h3>Evaluation setup</h3>
+          <p>The Kinetics and Affinity wizard adds the current goal, step, and selection to the initial prompt. It reuses the documentation endpoint and drawer.</p>
+          <p class="example"><span class="small-label">Example question</span>Which data do I need for this evaluation?</p>
+        </article>
+        <article class="use-case">
+          <h3>Completed results</h3>
+          <p>A separate service adds deterministic findings and tools for stored fits, responses, and rejection evidence within the authorized evaluation.</p>
+          <p class="example"><span class="small-label">Example question</span>Why was this fit excluded from the result?</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="architecture" aria-labelledby="architecture-title">
+      <div class="section-heading">
+        <h2 id="architecture-title">Follow a question</h2>
+        <p>The assistant runs inside the existing FastAPI Hub. The browser sends a question, the Hub prepares the evidence, and the configured LLM provider generates the answer.</p>
+      </div>
+      <div class="diagram">
+        <div class="diagram-head">
+          <p id="view-instruction">Select an entry point to inspect its request path.</p>
+          <div class="switcher" role="group" aria-label="Assistant request path">
+            <button type="button" data-view="documentation" aria-pressed="true" aria-controls="request-flow">Documentation</button>
+            <button type="button" data-view="wizard" aria-pressed="false" aria-controls="request-flow">Evaluation setup</button>
+            <button type="button" data-view="results" aria-pressed="false" aria-controls="request-flow">Completed results</button>
+          </div>
+          <noscript><p>The default diagram shows documentation requests. Evaluation setup and completed-result differences are described below.</p></noscript>
+        </div>
+        <div id="request-flow" class="flow" aria-live="polite" aria-atomic="true">
+          <div class="request">
+            <div>
+              <span class="small-label">Browser · React / TypeScript</span>
+              <h3 id="request-title">Documentation drawer</h3>
+              <p id="request-description">A question and session identifier enter the shared assistant stream hook.</p>
+            </div>
+            <code class="endpoint" id="request-endpoint">POST /documentation/chat/stream</code>
+          </div>
+          <div class="backend">
+            <div class="boundary-label"><span>FastAPI Hub · application backend</span><span id="scope-label">Authenticated user · conversation scope</span></div>
+            <ol class="pipeline" aria-label="Backend request stages">
+              <li>
+                <span class="step-number">01</span>
+                <h3 id="step-one-title">Route the question</h3>
+                <p id="step-one-description">Deterministic rules select answer mode, knowledge intent, and technology context.</p>
+              </li>
+              <li>
+                <span class="step-number">02</span>
+                <h3 id="step-two-title">Retrieve eligible evidence</h3>
+                <p id="step-two-description">Metadata filters run before weighted lexical ranking. Up to six chunks enter actionable and background pools.</p>
+              </li>
+              <li>
+                <span class="step-number">03</span>
+                <h3 id="step-three-title">Build prompt &amp; stream</h3>
+                <p id="step-three-description">Evidence, answer policy, and bounded history go to the shared OpenAI-compatible LLM client.</p>
+              </li>
+            </ol>
+            <div class="support-row">
+              <div class="support">
+                <strong id="support-one-title">Local knowledge corpus → retrieval</strong>
+                <p id="support-one-description">Generated documentation JSON plus curated external references, indexed when loaded.</p>
+              </div>
+              <div class="support">
+                <strong id="support-two-title">Optional catalog branch → prompt</strong>
+                <p id="support-two-description">A separate AI routing decision can authorize a bounded, cached first-party catalog read.</p>
+              </div>
+            </div>
+          </div>
+          <div class="output-arrow" aria-hidden="true">↓</div>
+          <div class="output">
+            <div>
+              <h3>NDJSON response</h3>
+              <p><code>token</code> sends text increments. <code>done</code> carries the full answer, session, route, coverage, and resolved sources. <code>error</code> reports a failure.</p>
+            </div>
+            <div>
+              <h3>Shared answer renderer</h3>
+              <p>Markdown and equations, source links, grounding and intent labels, rendered inside the reusable assistant drawer.</p>
+            </div>
+          </div>
+        </div>
+        <p class="diagram-caption" id="flow-caption">The ordinary documentation path uses local retrieval. Catalog routes can add live first-party data or return a shop link or catalog-unavailable notice.</p>
+      </div>
+
+      <div class="contract">
+        <h3>The browser consumes one stream contract</h3>
+        <p>Both services emit newline-delimited JSON. This abbreviated illustration shows the event shapes, without a generated answer or a measured result.</p>
+        <pre aria-label="Illustrative NDJSON event shapes"><code>{"type":"token","content":"Text increment"}
+{"type":"done","session_id":"…","ai_message":"…","answer_mode":"product","knowledge_intent":"product_operation","source_coverage":"low","sources":[…]}
+{"type":"error","detail":"User-facing error message"}</code></pre>
+      </div>
+    </section>
+
+    <section id="evidence" aria-labelledby="evidence-title">
+      <div class="section-heading">
+        <h2 id="evidence-title">Evidence has a job</h2>
+        <p>A relevant scientific reference may explain a mechanism without supporting a product procedure. Retrieval policy makes that distinction before the model sees an excerpt.</p>
+      </div>
+      <div class="two-columns">
+        <div>
+          <span class="eyebrow">Actionable evidence</span>
+          <h3>Support a product recommendation</h3>
+          <p>Product documentation and code facts eligible under the policy support product-specific actions. Troubleshooting prioritizes evidence for the product's focal-molography technology.</p>
+        </div>
+        <div>
+          <span class="eyebrow">Background evidence</span>
+          <h3>Explain the science</h3>
+          <p>Curated sources carry technology, claim-type, and transferability metadata. Analogy-only material can explain a concept, but the prompt prohibits turning it into a product instruction.</p>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <caption class="table-caption">Representative local-context allocations. The complete policy also considers the named technology and source applicability.</caption>
+          <thead><tr><th scope="col">Knowledge intent</th><th scope="col">Actionable pool</th><th scope="col">Background pool</th></tr></thead>
+          <tbody>
+            <tr><td>Product operation / troubleshooting</td><td>Up to 4 product chunks</td><td>Up to 2 validated or shared focal-molography chunks</td></tr>
+            <tr><td>Product surface chemistry / experiment design</td><td>Up to 3 product chunks</td><td>Up to 3 compatible chemistry, mechanism, or design chunks</td></tr>
+            <tr><td>Technology comparison</td><td>No actionable pool</td><td>Up to 6 chunks, with representation reserved for named technologies</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout"><p>Source coverage is an evidence-count bucket. For product-grounded routes, scientific background does not increase the product-grounding count. This label describes retrieved support; it is not a calibrated probability that an answer is correct.</p></div>
+      <div style="margin-top: 28px">
+        <details>
+          <summary>Routing separates answer mode, intent, and technology</summary>
+          <p>Answer modes are <code>product</code>, <code>science</code>, <code>hybrid</code>, and <code>low_confidence</code>. Knowledge intents include product operation, troubleshooting, experiment design, target-specific experiment design, surface chemistry, science, comparison, and unknown. Technology context constrains which evidence is eligible.</p>
+        </details>
+        <details>
+          <summary>Citation resolution stays within the supplied evidence</summary>
+          <p>The backend resolves source markers against the excerpts and catalog records available for that answer. If no valid markers resolve, it returns the retrieved corpus sources as a fallback. Catalog sources appear only when cited. Resolving a marker verifies source membership, not whether the source supports every claim.</p>
+        </details>
+        <details>
+          <summary>Completed evaluations use bounded, read-only tools</summary>
+          <p>The study endpoint authorizes the evaluation and loads bounded, typed snapshots before streaming. Database connections close before the model's tool loop. Hub-executed tools list entities, retrieve fit results, retrieve responses, explain rejections, and run an explicitly parameterized kinetic-design what-if. The tools cannot mutate experiments or select another study.</p>
+          <p>Rounds, calls, argument size, result size, and time are bounded. After budget exhaustion, a final model turn runs with tools disabled. Rejected fits provide exclusion evidence and cannot support binding conclusions. Stored plot metadata does not mean the assistant has read plot pixels.</p>
+        </details>
+        <details>
+          <summary>Conversation history commits only after an answer completes</summary>
+          <p>Sessions are keyed by user, assistant, resource, and session identifier. One turn runs at a time. The question and answer commit together after successful generation; interrupted turns leave the committed history unchanged. History and active-session counts are bounded. Sessions expire after one hour of inactivity and live only in the Hub process.</p>
+        </details>
+      </div>
+    </section>
+
+    <section id="validation" aria-labelledby="validation-title">
+      <div class="section-heading">
+        <h2 id="validation-title">Test the boundaries</h2>
+        <p>The regression evaluator shares the production question-preparation and prompt-building functions. It can inspect retrieval without a provider call, then use the same prompt in optional live runs.</p>
+      </div>
+      <div class="three-columns">
+        <article class="use-case">
+          <h3>Corpus freshness</h3>
+          <p>The build extracts documentation into a committed JSON corpus. CI checks source and generator hashes so documentation changes cannot silently leave retrieval on an old cache.</p>
+        </article>
+        <article class="use-case">
+          <h3>Offline regression gate</h3>
+          <p>Deterministic cases check route, intent, technology, retrieval hits, and forbidden evidence. Gating cases run through the API test suite; diagnostic cases preserve known gaps.</p>
+        </article>
+        <article class="use-case">
+          <h3>Optional live evaluation</h3>
+          <p>Provider runs record citations, time to first token, total duration, usage, and reported cost. Missing provider usage stays missing. The evaluator does not score semantic answer quality.</p>
+        </article>
+      </div>
+      <div class="two-columns tradeoffs">
+        <div>
+          <h3>Inspectable retrieval</h3>
+          <p>Local lexical ranking and explicit filters make source selection reproducible. Coverage still depends on curated metadata, vocabulary matching, and the available corpus. Multilingual and routing gaps remain visible in diagnostics.</p>
+        </div>
+        <div>
+          <h3>Shared state, explicit limits</h3>
+          <p>A common stream and UI support several workflows. Process-local sessions keep storage simple, but do not survive a Hub restart or synchronize across workers. Prompt instructions guide generation; they do not prove factual correctness.</p>
+        </div>
+      </div>
+    </section>
+    <footer>
+      <p>Xinyang Wu · Software engineering</p>
+      <a href="/#featured">Back to projects</a>
+    </footer>
+  </main>
+  <script>
+    (() => {
+      const views = {
+        documentation: {
+          "request-title": "Documentation drawer",
+          "request-description": "A question and session identifier enter the shared assistant stream hook.",
+          "request-endpoint": "POST /documentation/chat/stream",
+          "scope-label": "Authenticated user · conversation scope",
+          "step-one-title": "Route the question",
+          "step-one-description": "Deterministic rules select answer mode, knowledge intent, and technology context.",
+          "step-two-title": "Retrieve eligible evidence",
+          "step-two-description": "Metadata filters run before weighted lexical ranking. Up to six chunks enter actionable and background pools.",
+          "step-three-title": "Build prompt & stream",
+          "step-three-description": "Evidence, answer policy, and bounded history go to the shared OpenAI-compatible LLM client.",
+          "support-one-title": "Local knowledge corpus → retrieval",
+          "support-one-description": "Generated documentation JSON plus curated external references, indexed when loaded.",
+          "support-two-title": "Optional catalog branch → prompt",
+          "support-two-description": "A separate AI routing decision can authorize a bounded, cached first-party catalog read.",
+          "flow-caption": "The ordinary documentation path uses local retrieval. Catalog routes can add live first-party data or return a shop link or catalog-unavailable notice."
+        },
+        wizard: {
+          "request-title": "Kinetics and Affinity wizard",
+          "request-description": "The initial prompt includes the evaluation goal, current wizard step, and a summary of the selected data.",
+          "request-endpoint": "POST /documentation/chat/stream",
+          "scope-label": "Authenticated user · conversation scope",
+          "step-one-title": "Route the contextual question",
+          "step-one-description": "The same deterministic router processes the question and the wizard context supplied in the prompt.",
+          "step-two-title": "Retrieve eligible evidence",
+          "step-two-description": "The shared policy selects product and scientific excerpts for model choice, cleanup, data requirements, or review.",
+          "step-three-title": "Build prompt & stream",
+          "step-three-description": "The documentation service uses the shared LLM client and returns the same NDJSON events.",
+          "support-one-title": "Shared corpus → retrieval",
+          "support-one-description": "Setup guidance uses the same generated documentation and curated scientific references.",
+          "support-two-title": "Wizard context → initial prompt",
+          "support-two-description": "Goal, step, and selection labels supply context. This request does not read stored evaluation results.",
+          "flow-caption": "Evaluation setup is a context-aware use of the documentation assistant. It reuses the endpoint, stream hook, answer renderer, and drawer."
+        },
+        results: {
+          "request-title": "Completed evaluation · Ask drawer",
+          "request-description": "The drawer supplies a study-specific stream request after the user opens a completed evaluation.",
+          "request-endpoint": "POST /studies/{study_id}/assistant/chat/stream",
+          "scope-label": "Authenticated user · authorized study scope",
+          "step-one-title": "Authorize & load results",
+          "step-one-description": "The endpoint validates the evaluation and detaches bounded result snapshots before streaming. Database connections close here.",
+          "step-two-title": "Prepare shared context",
+          "step-two-description": "The evaluation service adds findings and an entity catalog, then reuses documentation routing, retrieval, and prompt assembly.",
+          "step-three-title": "Run a bounded tool loop",
+          "step-three-description": "The model requests details. Hub tools return scoped records or a design what-if, and the provider streams the answer.",
+          "support-one-title": "Read-only snapshots → tools",
+          "support-one-description": "Entities, fit results, responses, and rejection evidence remain bound to this evaluation.",
+          "support-two-title": "Explicit assumptions → design check",
+          "support-two-description": "A deterministic kinetic-design what-if requires complete inputs and does not modify stored findings.",
+          "flow-caption": "Completed-result analysis has a separate service and endpoint. It shares the documentation turn handling, retrieval, citations, NDJSON contract, and frontend drawer."
+        }
+      };
+      const buttons = Array.from(document.querySelectorAll("button[data-view]"));
+      for (const button of buttons) {
+        button.addEventListener("click", () => {
+          const selected = button.dataset.view;
+          const view = views[selected];
+          if (!view) return;
+          for (const [id, value] of Object.entries(view)) {
+            document.getElementById(id).textContent = value;
+          }
+          for (const item of buttons) {
+            item.setAttribute("aria-pressed", String(item === button));
+          }
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

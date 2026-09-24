@@ -13,19 +13,20 @@ export type Project = {
 
 export const projects: Project[] = [
   {
-    title: "Documentation & Evaluation Assistant Platform",
+    title: "Documentation & Evaluation Assistants",
     subtitle:
-      "Grounded LLM assistant for product documentation and evaluation workflows, built with routed retrieval, NDJSON streaming, source evidence, and reusable frontend drawers.",
+      "LLM assistants for product documentation and scientific evaluation workflows, combining policy-filtered retrieval, source-linked answers, and streamed React interfaces.",
     bullets: [
-      "Built a FastAPI-based assistant service over generated product documentation and curated external knowledge corpora.",
-      "Implemented question routing across product, science, hybrid, troubleshooting, surface-chemistry, and comparison intents.",
-      "Designed retrieval policy with actionable vs. background evidence pools, transferability filters, and source-coverage guardrails.",
-      "Streamed token and completion events as NDJSON with resolved source metadata for frontend grounding display.",
-      "Reused the same assistant stream inside the Kinetics and Affinity Evaluation Assistant with goal, step, and data-selection context."
+      "Built FastAPI assistant endpoints over generated product documentation and curated scientific references.",
+      "Implemented rule-based routing by answer mode, question intent, and technology, with source-applicability and transferability filters.",
+      "Separated actionable product evidence from scientific background, with bounded context and prompt rules for missing evidence.",
+      "Streamed answers and resolved sources over NDJSON, using shared React drawers for documentation and context-aware evaluation setup.",
+      "Extended completed-result analysis with bounded, read-only tools for fit results, responses, rejection evidence, and kinetic design checks.",
+      "Added CI checks for routing, retrieval, and corpus freshness, plus optional live evaluations for citations, latency, usage, and cost."
     ],
-    tags: ["Python", "FastAPI", "TypeScript", "LLM", "RAG", "NDJSON Streaming", "Retrieval Policy", "CI/CD"],
+    tags: ["Python", "FastAPI", "React", "TypeScript", "RAG", "NDJSON", "Tool Calling", "LLM Evaluation", "GitHub Actions"],
     caseStudyUrl: "/notes/llm-gateway-observability/",
-    architectureUrl: "/notes/ai-service-red-metrics/"
+    architectureUrl: "/architecture/documentation-evaluation-assistants/"
   },
   {
     title: "Go/Kubernetes Service Platform",
